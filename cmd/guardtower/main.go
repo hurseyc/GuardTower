@@ -107,6 +107,7 @@ func serve(args []string) error {
 	secure := fs.Bool("secure-cookies", envBool("GT_SECURE_COOKIES", false), "always mark cookies Secure (set when behind HTTPS) [GT_SECURE_COOKIES]")
 	tlsCert := fs.String("tls-cert", env("GT_TLS_CERT", ""), "TLS certificate file to serve HTTPS directly [GT_TLS_CERT]")
 	tlsKey := fs.String("tls-key", env("GT_TLS_KEY", ""), "TLS private key file [GT_TLS_KEY]")
+	metricsToken := fs.String("metrics-token", env("GT_METRICS_TOKEN", ""), "enable /metrics for Prometheus, protected by this bearer token [GT_METRICS_TOKEN]")
 	_ = fs.Parse(args)
 
 	log := newLogger(*logLevel, *logJSON)
@@ -128,6 +129,7 @@ func serve(args []string) error {
 		SecureCookies: *secure || *tlsCert != "",
 		WebFS:         guardtower.WebFS(),
 		DocsFS:        guardtower.DocsFS(),
+		MetricsToken:  *metricsToken,
 	})
 	if err != nil {
 		return err

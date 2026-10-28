@@ -98,11 +98,11 @@ cd web && PW_CHROMIUM_PATH=/opt/pw-browsers/chromium npx playwright test   # san
 
 ## Next steps (M8: installers & ops)
 
-1. `install/install.sh` (arch detection, checksum + cosign verify, user, systemd unit, `--upgrade` / `--uninstall`), tested in Debian and Ubuntu containers in CI.
-2. `install/proxmox-lxc.sh`: creates a Debian 12 LXC and runs install.sh inside (community-scripts style).
+1. ✅ `install/install.sh` (arch detection, checksum + cosign verify, user, systemd unit, `--upgrade` / `--uninstall [--purge]`); CI job `installers` runs shellcheck and installs, upgrades and uninstalls in Debian 12 and Ubuntu 24.04 containers against a locally built archive. Release archives are now version-less (`guardtower_linux_amd64.tar.gz`), so `/releases/latest/download/` works.
+2. ✅ `install/proxmox-lxc.sh`: creates a Debian 12 LXC on a PVE host and runs install.sh inside. Dry-run tested with fake `pct`/`pveam`/`pvesh`.
 3. Self-update: a release check for GuardTower itself, an in-app banner, and in-place binary update for systemd installs.
 4. OIDC sign-in (`GT_OIDC_*` env vars, group → role mapping).
-5. Prometheus `/metrics` (fleet, query, rollout and collector gauges), with an optional token.
+5. ✅ Prometheus `/metrics`, enabled by `GT_METRICS_TOKEN` (bearer); never exports family data. Docs: `admin/monitoring.md`.
 6. YAML export/import of the desired config (base, groups, overrides).
 7. `--demo` mode with a seeded fake fleet, for screenshots and trying GuardTower out.
 8. Proxmox read-only API mapping of LXC/VM → node (moved from M6).

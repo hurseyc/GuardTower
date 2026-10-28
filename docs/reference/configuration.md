@@ -21,6 +21,7 @@ GuardTower is configured with command-line flags or environment variables. Every
 | `-secure-cookies` | `GT_SECURE_COOKIES` | `false` | Always mark cookies `Secure`; set when HTTPS is terminated by a proxy |
 | `-tls-cert` | `GT_TLS_CERT` | — | Serve HTTPS directly with this certificate file |
 | `-tls-key` | `GT_TLS_KEY` | — | Private key for `-tls-cert` |
+| `-metrics-token` | `GT_METRICS_TOKEN` | — | Enables `/metrics` for Prometheus; scrapers must send it as a bearer token. See [Monitoring](../admin/monitoring.md). |
 | — | `GT_SECRET_KEY` | — | 64 hex characters. Overrides `secret.key` (useful with Docker secrets) |
 
 Generate a `GT_SECRET_KEY` with `openssl rand -hex 32`.
