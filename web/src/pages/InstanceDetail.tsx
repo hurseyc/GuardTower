@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { ArrowLeft, ExternalLink, Pencil, RefreshCw, ShieldCheck, ShieldOff } from 'lucide-react'
 import { api, type Instance, type Overview } from '@/lib/api'
-import { useSession } from '@/lib/session'
+import { useSession } from '@/lib/sessionContext'
 import { colorFor, fmtDateTime, timeAgo } from '@/lib/utils'
 import { PageHeader } from '@/components/AppShell'
 import { Badge, Button, Card, CardHeader, Dialog, Select, Skeleton, StatusDot } from '@/components/ui'
@@ -92,7 +92,7 @@ export function InstanceDetailPage() {
           </>
         }
       />
-      <div className="grid gap-6 p-6 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 p-6 xl:grid-cols-3">
         <Card className="xl:col-span-2">
           <CardHeader title="Connection" />
           <dl className="grid gap-x-6 gap-y-4 px-5 pb-5 text-sm sm:grid-cols-2">

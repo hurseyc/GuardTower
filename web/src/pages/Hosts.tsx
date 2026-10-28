@@ -1,13 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Building2, HardDrive, Pencil, Plus, Server, Trash2 } from 'lucide-react'
 import { api, type Host, type HostKind, type Overview, type Site } from '@/lib/api'
-import { useSession } from '@/lib/session'
+import { useSession } from '@/lib/sessionContext'
 import { PageHeader } from '@/components/AppShell'
-import { useResilience } from '@/components/Resilience'
+import { useResilience } from '@/lib/resilience'
 import { ProxmoxCard } from '@/components/ProxmoxCard'
 import { Badge, Button, Card, CardHeader, ConfirmDialog, Dialog, EmptyState, Field, Input, Select, StatusDot, Textarea } from '@/components/ui'
+import { useOnChange } from '@/lib/useOnChange'
 
 const kinds: { value: HostKind; label: string }[] = [
   { value: 'proxmox', label: 'Proxmox node' },
@@ -183,9 +184,9 @@ export function HostsPage() {
 
 function HostDialog({ open, host, sites, onOpenChange, onSaved }: { open: boolean; host?: Host; sites: Site[]; onOpenChange: (v: boolean) => void; onSaved: () => void }) {
   const [f, setF] = useState<Omit<Host, 'id'>>({ name: '', kind: 'proxmox', address: '', power: '', notes: '', site_id: 0 })
-  useEffect(() => {
-    if (open) setF(host ? { ...host, site_id: host.site_id ?? 0 } : { name: '', kind: 'proxmox', address: '', power: '', notes: '', site_id: 0 })
-  }, [open, host])
+  useOnChange(open ? (host?.id ?? 'new') : null, (k) => {
+    if (k !== null) setF(host ? { ...host, site_id: host.site_id ?? 0 } : { name: '', kind: 'proxmox', address: '', power: '', notes: '', site_id: 0 })
+  })
   const save = useMutation({
     mutationFn: () => {
       const body = { name: f.name, kind: f.kind, address: f.address, power: f.power, notes: f.notes, site_id: Number(f.site_id) }
@@ -253,9 +254,9 @@ function HostDialog({ open, host, sites, onOpenChange, onSaved }: { open: boolea
 
 function SiteDialog({ open, site, onOpenChange, onSaved }: { open: boolean; site?: Site; onOpenChange: (v: boolean) => void; onSaved: () => void }) {
   const [name, setName] = useState('')
-  useEffect(() => {
-    if (open) setName(site?.name ?? '')
-  }, [open, site])
+  useOnChange(open ? (site?.id ?? 'new') : null, (k) => {
+    if (k !== null) setName(site?.name ?? '')
+  })
   const save = useMutation({
     mutationFn: () => (site ? api.put(`/sites/${site.id}`, { name }) : api.post('/sites', { name })),
     onSuccess: () => {

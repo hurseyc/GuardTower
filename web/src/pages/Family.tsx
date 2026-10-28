@@ -15,23 +15,14 @@ import {
   type Overview,
   type Person,
 } from '@/lib/api'
-import { useSession } from '@/lib/session'
+import { useSession } from '@/lib/sessionContext'
 import { cn, colorFor, fmtDateTime, fmtNum, timeAgo } from '@/lib/utils'
 import { PageHeader } from '@/components/AppShell'
 import { Badge, Button, Card, CardHeader, ConfirmDialog, Dialog, EmptyState, Field, Input, Select, Skeleton, Switch, Table, Td, Th } from '@/components/ui'
 import { BarList, HourHeatmap, TimeSeriesChart } from '@/components/charts'
 import { StatCard } from './Overview'
+import { categoryLabel } from '@/lib/labels'
 
-export const categoryLabel: Record<FamilyCategory, string> = {
-  adult: 'Adult',
-  gambling: 'Gambling',
-  bypass: 'VPN & private DNS',
-  social: 'Social media',
-  gaming: 'Gaming',
-  malware: 'Malware',
-  safesearch: 'Safe search',
-  ads: 'Ads & tracking',
-}
 // Fixed palette slot per category (identity, never rank).
 const categorySlot: Record<FamilyCategory, number> = { adult: 4, gambling: 3, bypass: 6, social: 0, gaming: 2, malware: 7, safesearch: 5, ads: 1 }
 const catColor = (c: FamilyCategory) => `var(--series-${categorySlot[c] + 1})`
@@ -208,7 +199,7 @@ export function FamilyPage() {
                 />
               </Card>
             ) : (
-              <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
                 {data.people.map((p) => (
                   <PersonCard key={p.person_id} p={p} days={days} />
                 ))}
@@ -330,7 +321,7 @@ export function FamilyPersonPage() {
                 </div>
               </Card>
             )}
-            <div className="grid gap-6 xl:grid-cols-3">
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
               <Card className="xl:col-span-2">
                 <CardHeader title="When attempts happen" description={`Attempts by day of week and hour${data.late_night ? ` · ${data.late_night} during bedtime` : ''}`} />
                 <div className="px-3 pb-3">
@@ -348,7 +339,7 @@ export function FamilyPersonPage() {
                 </div>
               </Card>
             </div>
-            <div className="grid gap-6 xl:grid-cols-3">
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
               <Card className="xl:col-span-2">
                 <CardHeader title="Trend" description="Attempts per day" />
                 <div className="px-3 pb-3">
@@ -643,7 +634,7 @@ export function FamilySettingsPage() {
       <PageHeader title="Family DNS" description="How attempts are recorded, shown and reported.">
         <FamilyNav />
       </PageHeader>
-      <div className="grid gap-6 p-6 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 p-6 xl:grid-cols-2">
         <Card>
           <CardHeader title="Display & alerts" />
           <form className="space-y-4 px-5 pb-5" onSubmit={(e) => (e.preventDefault(), save.mutate())}>

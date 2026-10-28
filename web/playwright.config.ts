@@ -19,7 +19,11 @@ export default defineConfig({
     // Optional: use a preinstalled Chromium instead of Playwright's download.
     launchOptions: process.env.PW_CHROMIUM_PATH ? { executablePath: process.env.PW_CHROMIUM_PATH } : {},
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: /a11y\.spec\.ts/ },
+    // Accessibility checks need the fleet the main suite sets up.
+    { name: 'a11y', use: { ...devices['Desktop Chrome'] }, testMatch: /a11y\.spec\.ts/, dependencies: ['chromium'] },
+  ],
   webServer: {
     command: `rm -rf ../tmp/e2e-data && GT_DATA_DIR=../tmp/e2e-data ../bin/guardtower serve -listen 127.0.0.1:${PORT}`,
     url: `http://127.0.0.1:${PORT}/healthz`,

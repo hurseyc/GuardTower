@@ -4,9 +4,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { Command } from 'cmdk'
-import { CircleHelp, LogOut, Menu, Monitor, Moon, Search, Sun, X, KeyRound } from 'lucide-react'
+import { ArrowUpCircle, CircleHelp, FileCode2, KeyRound, LogOut, Menu, Monitor, Moon, Plus, Rocket, ScrollText, Search, Server, Sun, X } from 'lucide-react'
 import { api, type DocPage, type Overview } from '@/lib/api'
-import { useSession } from '@/lib/session'
+import { useSession } from '@/lib/sessionContext'
 import { navRoutes, docForPath } from '@/lib/routes'
 import { onServerEvent, useServerEvents } from '@/lib/events'
 import { cn } from '@/lib/utils'
@@ -16,6 +16,7 @@ import { Logo } from './Logo'
 import { ChangePasswordDialog } from './ChangePasswordDialog'
 import { ErrorBoundary } from './ErrorBoundary'
 import { UpdateBanner } from './UpdateBanner'
+import { useOnChange } from '@/lib/useOnChange'
 
 type Theme = 'light' | 'dark' | 'system'
 
@@ -64,7 +65,7 @@ export function AppShell() {
     })
   }, [seesFamily, qc, navigate])
 
-  useEffect(() => setMobileOpen(false), [loc.pathname])
+  useOnChange(loc.pathname, () => setMobileOpen(false))
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
@@ -208,7 +209,7 @@ export function AppShell() {
           </div>
         </header>
         {can('admin') && <UpdateBanner />}
-        <main className="min-h-0 flex-1 overflow-y-auto">
+        <main id="main" tabIndex={0} className="min-h-0 flex-1 overflow-y-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
           <ErrorBoundary resetKey={loc.pathname}>
             <Outlet />
           </ErrorBoundary>
@@ -309,6 +310,22 @@ function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (
         </div>
         <Command.List className="max-h-[60vh] overflow-y-auto p-2">
           <Command.Empty className="px-3 py-6 text-center text-sm text-muted">No results.</Command.Empty>
+          <Command.Group heading="Actions" className="text-[10px] font-semibold uppercase tracking-wider text-faint [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1.5">
+            {[
+              { label: 'Add an instance', to: '/instances?add=1', icon: Plus, role: 'admin' as const },
+              { label: 'Review & apply pending changes', to: '/changes', icon: Rocket, role: 'operator' as const },
+              { label: 'Plan an AdGuard Home upgrade', to: '/upgrades', icon: ArrowUpCircle, role: 'operator' as const },
+              { label: 'Import or export settings (YAML)', to: '/config', icon: FileCode2, role: 'viewer' as const },
+              { label: 'Connect Proxmox', to: '/hosts', icon: Server, role: 'admin' as const },
+              { label: 'Search the query log', to: '/logs', icon: ScrollText, role: 'viewer' as const },
+            ]
+              .filter((a) => can(a.role))
+              .map((a) => (
+                <Command.Item key={a.label} value={`action ${a.label}`} onSelect={() => go(a.to)} className={cn(item, 'normal-case tracking-normal text-fg')}>
+                  <a.icon className="h-4 w-4 text-muted" /> {a.label}
+                </Command.Item>
+              ))}
+          </Command.Group>
           <Command.Group heading="Pages" className="text-[10px] font-semibold uppercase tracking-wider text-faint [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1.5">
             {navRoutes
               .filter((r) => (!r.minRole || can(r.minRole)) && (!r.family || user?.family_access || can('admin')))

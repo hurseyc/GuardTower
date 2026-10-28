@@ -1,11 +1,13 @@
 // Chart primitives. Colors come from CSS tokens (validated palette in
 // index.css) so light and dark each use their own selected steps.
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import * as echarts from 'echarts/core'
 import { HeatmapChart, LineChart, SankeyChart, TreemapChart } from 'echarts/charts'
 import { AxisPointerComponent, GridComponent, LegendComponent, TooltipComponent, VisualMapComponent } from 'echarts/components'
 import { SVGRenderer } from 'echarts/renderers'
 import { cn, fmtCompact, fmtNum } from '@/lib/utils'
+import type { Theme } from '@/lib/chartTheme'
+import { seriesColor, useChartTheme } from '@/lib/chartTheme'
 
 echarts.use([LineChart, HeatmapChart, TreemapChart, SankeyChart, GridComponent, TooltipComponent, LegendComponent, AxisPointerComponent, VisualMapComponent, SVGRenderer])
 
@@ -29,50 +31,6 @@ function EChart({ option, height, label }: { option: echarts.EChartsCoreOption; 
     chart.current?.setOption(option, { notMerge: true })
   }, [option])
   return <div ref={ref} role="img" aria-label={label} style={{ height, width: '100%' }} />
-}
-
-interface Theme {
-  dark: boolean
-  series: string[]
-  seq: string[]
-  text: string
-  muted: string
-  faint: string
-  grid: string
-  surface: string
-  border: string
-}
-
-function readTheme(): Theme {
-  const cs = getComputedStyle(document.documentElement)
-  const v = (n: string) => cs.getPropertyValue(n).trim()
-  return {
-    dark: document.documentElement.classList.contains('dark'),
-    series: [1, 2, 3, 4, 5, 6, 7, 8].map((i) => v(`--series-${i}`)),
-    seq: [0, 1, 2, 3, 4, 5].map((i) => v(`--seq-${i}`)),
-    text: v('--fg'),
-    muted: v('--fg-muted'),
-    faint: v('--fg-subtle'),
-    grid: v('--grid'),
-    surface: v('--bg-elevated'),
-    border: v('--border'),
-  }
-}
-
-/** Current chart theme; re-reads tokens when the light/dark class changes. */
-export function useChartTheme(): Theme {
-  const [theme, setTheme] = useState<Theme>(readTheme)
-  useEffect(() => {
-    const obs = new MutationObserver(() => setTheme(readTheme()))
-    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
-    return () => obs.disconnect()
-  }, [])
-  return theme
-}
-
-/** Series color by stable index (fixed order; callers pass the entity's index, never its rank). */
-export function seriesColor(theme: Theme, index: number) {
-  return theme.series[index % theme.series.length]
 }
 
 function tooltipBase(t: Theme) {

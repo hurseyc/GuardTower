@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { ArrowUpCircle, CheckCircle2, KeyRound, PlugZap, XCircle } from 'lucide-react'
 import { api, type UpgradeConfig, type UpgradeDriver, type UpgradeOverview, type UpgradeTestResult } from '@/lib/api'
-import { useSession } from '@/lib/session'
+import { useSession } from '@/lib/sessionContext'
 import { cn } from '@/lib/utils'
 import { Badge, Button, Card, CardHeader, Field, Input, Select, Skeleton, Switch } from './ui'
 

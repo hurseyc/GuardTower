@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { CheckCircle2, PlugZap, XCircle } from 'lucide-react'
 import { api, type Group, type Host, type Instance, type Runtime } from '@/lib/api'
 import { Button, Dialog, Field, Input, Select, Switch, Textarea } from './ui'
 import { FindingList, type Finding } from './Resilience'
+import { useOnChange } from '@/lib/useOnChange'
 
 const runtimes: { value: Runtime; label: string }[] = [
   { value: 'unknown', label: 'Not specified' },
@@ -77,8 +78,8 @@ export function InstanceDialog({
   const [testing, setTesting] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
 
-  useEffect(() => {
-    if (!open) return
+  useOnChange(open ? (instance?.id ?? 'new') : null, (k) => {
+    if (k === null) return
     setTest(null)
     if (instance) {
       setF({
@@ -101,7 +102,7 @@ export function InstanceDialog({
       setF(empty)
       setShowAdvanced(false)
     }
-  }, [open, instance])
+  })
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setF((s) => ({ ...s, [k]: v }))
   const payload = () => ({

@@ -1,54 +1,23 @@
 import { useMemo } from 'react'
-import { useNavigate, useSearchParams } from 'react-router'
+import { useNavigate } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import { Activity, Ban, Clock, Database, Users } from 'lucide-react'
 import { api, type Overview, type StatsSummary } from '@/lib/api'
 import { colorFor, fmtCompact, fmtNum, fmtPct } from '@/lib/utils'
 import { statusMeta } from '@/lib/status'
 import { PageHeader } from '@/components/AppShell'
-import { Card, CardHeader, EmptyState, Select, Skeleton, Tabs, TabsList, TabsTrigger } from '@/components/ui'
-import { BarList, FlowSankey, HourHeatmap, TimeSeriesChart, TrafficTreemap, useChartTheme, seriesColor, type SankeyInput, type TreeGroup } from '@/components/charts'
+import { Card, CardHeader, EmptyState, Select, Segmented, Skeleton } from '@/components/ui'
+import { BarList, FlowSankey, HourHeatmap, TimeSeriesChart, TrafficTreemap, type SankeyInput, type TreeGroup } from '@/components/charts'
+import { seriesColor } from '@/lib/chartTheme'
+import { useChartTheme } from '@/lib/chartTheme'
 import { StatCard } from './Overview'
-
-export const ranges = [
-  { value: '1h', label: '1 hour' },
-  { value: '6h', label: '6 hours' },
-  { value: '24h', label: '24 hours' },
-  { value: '7d', label: '7 days' },
-  { value: '30d', label: '30 days' },
-]
-
-/** Shared filter state kept in the URL so views are linkable. */
-export function useFleetFilter(defaultRange = '24h') {
-  const [params, setParams] = useSearchParams()
-  const range = params.get('range') ?? defaultRange
-  const group = params.get('group') ?? ''
-  const instance = params.get('instance') ?? ''
-  const set = (k: string, v: string) => {
-    const n = new URLSearchParams(params)
-    if (v) n.set(k, v)
-    else n.delete(k)
-    setParams(n, { replace: true })
-  }
-  const qs = new URLSearchParams()
-  if (group) qs.set('group', group)
-  if (instance) qs.set('instance', instance)
-  return { range, group, instance, set, scopeQuery: qs.toString() }
-}
+import { ranges, useFleetFilter } from '@/lib/fleetFilter'
 
 export function FleetFilterBar({ overview, range, group, instance, set, showRange = true }: { overview?: Overview; range?: string; group: string; instance: string; set: (k: string, v: string) => void; showRange?: boolean }) {
   return (
     <div className="mt-4 flex flex-wrap items-center gap-2">
       {showRange && range && (
-        <Tabs value={range} onValueChange={(v) => set('range', v)}>
-          <TabsList>
-            {ranges.map((r) => (
-              <TabsTrigger key={r.value} value={r.value}>
-                {r.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+        <Segmented label="Time range" value={range} options={ranges} onChange={(v) => set('range', v)} />
       )}
       <Select value={group} onChange={(e) => set('group', e.target.value)} className="w-44" aria-label="Group">
         <option value="">All groups</option>
@@ -185,7 +154,7 @@ export function AnalyticsPage() {
                     <TimeSeriesChart series={series} bucketMs={data.bucket_ms} />
                   </div>
                 </Card>
-                <div className="grid gap-6 xl:grid-cols-2">
+                <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
                   <Card>
                     <CardHeader title="Traffic by instance" description="Share of all queries handled by each instance" />
                     <div className="px-3 pb-4">
@@ -211,7 +180,7 @@ export function AnalyticsPage() {
                     </div>
                   </Card>
                 </div>
-                <div className="grid gap-6 xl:grid-cols-5">
+                <div className="grid grid-cols-1 gap-6 xl:grid-cols-5">
                   <Card className="xl:col-span-3">
                     <CardHeader title="Traffic share" description="Each block is an instance, sized by queries and grouped by settings group. Click one to focus it." />
                     <div className="px-3 pb-4">
@@ -248,7 +217,7 @@ export function AnalyticsPage() {
                     </div>
                   </Card>
                 )}
-                <div className="grid gap-6 xl:grid-cols-3">
+                <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
                   <Card>
                     <CardHeader title="Top queried domains" />
                     <div className="px-3 pb-4">
@@ -272,7 +241,7 @@ export function AnalyticsPage() {
                     </div>
                   </Card>
                 </div>
-                <div className="grid gap-6 xl:grid-cols-3">
+                <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
                   <Card>
                     <CardHeader title="Outcome" description="What happened to each query" />
                     <div className="space-y-2 px-5 pb-5">

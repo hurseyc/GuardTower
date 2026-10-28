@@ -1,5 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
-import { useSession } from '@/lib/session'
+import { useSession } from '@/lib/sessionContext'
 import { AppShell } from '@/components/AppShell'
 import { Skeleton } from '@/components/ui'
 import { LoginPage, SetupPage } from '@/pages/Auth'

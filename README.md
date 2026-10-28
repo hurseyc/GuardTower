@@ -16,8 +16,21 @@
 </p>
 
 <p align="center">
-  <img src=".github/assets/overview.png" alt="GuardTower overview dashboard" width="900">
+  <img src=".github/assets/overview.png" alt="GuardTower overview: fleet health, a single-point-of-failure warning and 24 hours of traffic" width="900">
 </p>
+
+<table>
+  <tr>
+    <td><img src=".github/assets/topology.png" alt="Topology map: hosts, instances and the shared host behind Kids VLAN"></td>
+    <td><img src=".github/assets/analytics.png" alt="Analytics: a week of queries and blocks, and traffic per instance"></td>
+  </tr>
+  <tr>
+    <td><img src=".github/assets/family.png" alt="Family DNS: adult-site attempts per person, bedtime counts and bypass signals"></td>
+    <td><img src=".github/assets/config.png" alt="Configuration: Base, group and instance settings layers"></td>
+  </tr>
+</table>
+
+<p align="center"><sub>Screenshots from <a href="docs/getting-started/demo.md">demo mode</a> (<code>make build && cd web && npm run screenshots</code> regenerates them).</sub></p>
 
 ---
 

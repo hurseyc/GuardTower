@@ -1,15 +1,16 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Boxes, Download, FileDown, FileUp, Globe, Layers, Plus, ShieldCheck, Trash2, Undo2 } from 'lucide-react'
 import { api, type ConfigField, type ConfigSection, type LayerDoc, type LayerInfo, type Overview } from '@/lib/api'
 import { fmtValue, keyOf, mergeLayers } from '@/lib/configMerge'
-import { useSession } from '@/lib/session'
+import { useSession } from '@/lib/sessionContext'
 import { cn, colorFor, timeAgo } from '@/lib/utils'
 import { PageHeader } from '@/components/AppShell'
 import { YamlImportDialog } from '@/components/YamlDialog'
 import { Badge, Button, Card, Dialog, Field, Input, Select, Skeleton, Switch, Textarea } from '@/components/ui'
+import { useOnChange } from '@/lib/useOnChange'
 
 type ScopeSel = { scope: 'base' | 'group' | 'instance'; id: number }
 
@@ -287,7 +288,7 @@ function FieldRow({
     <div className="grid gap-3 px-5 py-4 md:grid-cols-[16rem_1fr]">
       <div>
         <div className="flex items-center gap-2">
-          <Switch checked={set} disabled={readOnly} onCheckedChange={(on) => onChange(on ? defaultFor(f, inherited, isBase) : undefined)} />
+          <Switch label={`${isBase ? 'Manage' : 'Set at this level'}: ${f.label}`} checked={set} disabled={readOnly} onCheckedChange={(on) => onChange(on ? defaultFor(f, inherited, isBase) : undefined)} />
           <span className="text-sm font-medium">{f.label}</span>
         </div>
         <p className="mt-1 pl-11 text-xs text-faint">
@@ -339,7 +340,7 @@ function FieldEditor({
     case 'bool':
       return (
         <label className="inline-flex items-center gap-2 text-sm">
-          <Switch checked={!!value} disabled={readOnly} onCheckedChange={onChange} /> {value ? 'On' : 'Off'}
+          <Switch label={f.label} checked={!!value} disabled={readOnly} onCheckedChange={onChange} /> {value ? 'On' : 'Off'}
         </label>
       )
     case 'int':
@@ -384,7 +385,7 @@ function FieldEditor({
 function JSONEditor({ value, onChange, readOnly }: { value: unknown; onChange: (v: unknown) => void; readOnly: boolean }) {
   const [text, setText] = useState(JSON.stringify(value, null, 2))
   const [err, setErr] = useState('')
-  useEffect(() => setText(JSON.stringify(value, null, 2)), [value])
+  useOnChange(JSON.stringify(value, null, 2), setText)
   return (
     <div>
       <Textarea
@@ -440,7 +441,7 @@ function KeyedEditor({
           {editable.map((x) =>
             x.kind === 'bool' ? (
               <label key={x.name} className="flex items-center gap-2 pb-2 text-xs text-muted">
-                <Switch checked={!!it[x.name]} disabled={readOnly} onCheckedChange={(v) => update(i, x.name, v)} /> {x.label}
+                <Switch label={x.label} checked={!!it[x.name]} disabled={readOnly} onCheckedChange={(v) => update(i, x.name, v)} /> {x.label}
               </label>
             ) : (
               <Field key={x.name} label={x.label}>
@@ -509,12 +510,12 @@ function ImportDialog({
   const qc = useQueryClient()
   const [instanceId, setInstanceId] = useState(0)
   const [sections, setSections] = useState<string[]>(schema.map((s) => s.key))
-  useEffect(() => {
-    if (open) {
+  useOnChange(open, (o) => {
+    if (o) {
       setInstanceId(overview.instances.find((i) => i.status?.online)?.id ?? overview.instances[0]?.id ?? 0)
       setSections(schema.map((s) => s.key))
     }
-  }, [open, overview, schema])
+  })
   const run = useMutation({
     mutationFn: () => api.post('/config/import', { instance_id: instanceId, scope: target.scope, id: target.id, sections }),
     onSuccess: () => {

@@ -173,7 +173,7 @@ test.describe.serial('resilience and topology', () => {
     await page.getByRole('button', { name: /Main network/ }).click()
     await expect(page).toHaveURL(/group=\d+/)
     await expect(page.getByText(/All 2 DNS servers of Main network run on nas-1/)).toBeVisible()
-    await page.getByRole('tab', { name: /By group/ }).click()
+    await page.getByRole('button', { name: /By group/ }).click()
     await expect(page).toHaveURL(/view=logical/)
     await page.locator('.react-flow__node').filter({ hasText: 'agh-2' }).click()
     await expect(page).toHaveURL(/\/instances\/\d+/)

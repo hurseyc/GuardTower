@@ -91,6 +91,19 @@ jobs:
           path: web/playwright-report
           retention-days: 7
 
+  docs:
+    name: Docs site (nav up to date, strict build with link and anchor checks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install -r docs/requirements.txt
+      - name: Navigation matches the pages' front matter
+        run: python3 scripts/mkdocs_nav.py && git diff --exit-code mkdocs.yml
+      - run: mkdocs build --strict
+
   installers:
     name: Installers (shellcheck, install.sh on Debian and Ubuntu)
     runs-on: ubuntu-latest

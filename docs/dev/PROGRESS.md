@@ -15,7 +15,7 @@ This file is the single source of truth for resuming work. It is kept current at
 | M6 | SPOF scoring + warnings, topology map, visual analytics | ✅ done (Proxmox auto-mapping moved to M8) |
 | M7 | Family DNS: people/devices, categories, adult dashboard, alerts, Family profile | ✅ done |
 | M8 | Installers (install.sh, Proxmox helper), self-update, OIDC, metrics, YAML export, demo mode, Proxmox API mapping | ✅ done |
-| M9 | Polish, accessibility pass, screenshots, v1.0.0 | ⏳ next |
+| M9 | Polish, accessibility pass, screenshots, v1.0.0 | ✅ done (release waits on the repo setting below) |
 
 ## How to resume
 
@@ -107,11 +107,23 @@ cd web && PW_CHROMIUM_PATH=/opt/pw-browsers/chromium npx playwright test   # san
 - Proxmox (`internal/proxmox`, migration 0007): read-only token, `/cluster/resources`, LXC interfaces → static config fallback, QEMU guest agent; match by IP then name; creates node hosts; moves are audited (`proxmox.placement`) and pushed as `placement.changed`. Sync every 5 min + on save + on demand.
 - Fixes found on the way: 24 h summaries from hourly rollups were bucketed at 15 min (spiky chart); SQLite transactions now `_txlock=immediate` (a read-then-write tx could fail instantly with SQLITE_BUSY).
 
-## Next steps (M9: polish → v1.0.0)
+## M9 notes
 
-1. Fix the remaining `react(set-state-in-effect)` lint warnings (Config.tsx, Hosts.tsx dialogs, …).
-2. Accessibility pass (axe in Playwright for every route; keyboard paths; focus rings; colour contrast in both themes).
-3. Mobile layouts (sidebar sheet, tables → cards under `sm`).
-4. Empty states and first-run guidance everywhere; ⌘K actions.
-5. Screenshots / demo GIF for the README from demo mode (`guardtower serve --demo`); docs site (mkdocs) publish job.
-6. Review Dependabot PRs; cut v1.0.0 through release-please.
+- Lint is warning-free and CI fails on warnings (`oxlint --deny-warnings`). Dialog state resets during render with `lib/useOnChange.ts`, keyed on `open` plus the edited id, never in effects. Shared hooks and constants live in `lib/`.
+- Accessibility: the Playwright project `a11y` (runs after the main suite) checks every page with axe (WCAG 2.1 AA) in light and dark themes and at 390 px wide, and fails if a page scrolls sideways. `routes.test.ts` keeps its page list in step with `navRoutes`. Light-theme accent and status colours and the faint text token were darkened to reach 4.5:1.
+- Phone layouts: single-column grids use `grid-cols-1` (minmax(0,1fr)); secondary table columns hide below `md`/`lg`; table wrappers are `relative` and focusable.
+- Overview "Getting started" checklist (admins, dismissible) and an Actions group in ⌘K.
+- Screenshots: `make build && cd web && npm run screenshots` (demo mode → `.github/assets`).
+- Docs site: `mkdocs.yml` nav from front matter (`scripts/mkdocs_nav.py`); CI job `docs` builds `--strict` (broken links/anchors fail); `pages.yml` publishes on release.
+- First release is set to v1.0.0 (`release-as` in `release-please-config.json`; remove it after the release).
+
+## Needs the repo owner
+
+1. **Settings → Actions → General → Workflow permissions:** enable *Allow GitHub Actions to create and approve pull requests*. Until then the Release workflow fails ("GitHub Actions is not permitted to create or approve pull requests") and no release PR, tag or binaries appear.
+2. **Settings → Pages:** source *GitHub Actions*, for the docs site.
+3. Make the repository public for v1.0.0 (CodeQL is skipped while it is private).
+
+## After v1.0.0
+
+- Review and merge the open Dependabot PRs (actions, node image, web deps) once CI is green on each.
+- Remove `release-as` from `release-please-config.json`.

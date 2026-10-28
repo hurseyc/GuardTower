@@ -3,11 +3,13 @@ import { Link } from 'react-router'
 import { Activity, Boxes, Plus, Server, ShieldCheck, ShieldOff } from 'lucide-react'
 import { api, type Overview, type StatsSummary } from '@/lib/api'
 import { TimeSeriesChart } from '@/components/charts'
-import { useSession } from '@/lib/session'
+import { useSession } from '@/lib/sessionContext'
 import { colorFor, fmtCompact, fmtPct, timeAgo } from '@/lib/utils'
-import { FindingList, useResilience } from '@/components/Resilience'
+import { FindingList } from '@/components/Resilience'
+import { useResilience } from '@/lib/resilience'
 import { PageHeader } from '@/components/AppShell'
 import { Badge, Button, Card, CardHeader, EmptyState, Skeleton, StatusDot, Tip } from '@/components/ui'
+import { GettingStarted } from '@/components/GettingStarted'
 
 export function StatCard({ label, value, sub, icon, tone = 'neutral' }: { label: string; value: React.ReactNode; sub?: React.ReactNode; icon?: React.ReactNode; tone?: 'neutral' | 'ok' | 'warn' | 'danger' }) {
   const toneCls = { neutral: 'text-fg', ok: 'text-ok', warn: 'text-warn', danger: 'text-danger' }[tone]
@@ -92,6 +94,7 @@ export function OverviewPage() {
     <>
       <PageHeader title="Overview" description="Live health of every AdGuard Home instance GuardTower manages." />
       <div className="space-y-6 p-6">
+        {can('admin') && <GettingStarted overview={data} />}
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard
             label="Instances online"
