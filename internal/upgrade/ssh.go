@@ -10,6 +10,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/crypto/ssh"
@@ -147,14 +148,32 @@ func serviceOr(s string) string {
 
 func shellQuote(s string) string { return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'" }
 
+type lockedBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *lockedBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *lockedBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
 func runSSH(ctx context.Context, cl *ssh.Client, sudo bool, cmd, stdin string) (string, error) {
 	sess, err := cl.NewSession()
 	if err != nil {
 		return "", err
 	}
 	defer sess.Close()
-	var out bytes.Buffer
-	sess.Stdout, sess.Stderr = &out, &out
+	// Stdout and stderr are copied by separate goroutines.
+	out := &lockedBuffer{}
+	sess.Stdout, sess.Stderr = out, out
 	if stdin != "" {
 		sess.Stdin = strings.NewReader(stdin)
 	}
