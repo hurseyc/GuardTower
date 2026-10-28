@@ -3,11 +3,11 @@ import { useNavigate, useSearchParams } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import { Activity, Ban, Clock, Database, Users } from 'lucide-react'
 import { api, type Overview, type StatsSummary } from '@/lib/api'
-import { fmtCompact, fmtNum, fmtPct } from '@/lib/utils'
+import { colorFor, fmtCompact, fmtNum, fmtPct } from '@/lib/utils'
 import { statusMeta } from '@/lib/status'
 import { PageHeader } from '@/components/AppShell'
 import { Card, CardHeader, EmptyState, Select, Skeleton, Tabs, TabsList, TabsTrigger } from '@/components/ui'
-import { BarList, HourHeatmap, TimeSeriesChart, useChartTheme, seriesColor } from '@/components/charts'
+import { BarList, FlowSankey, HourHeatmap, TimeSeriesChart, TrafficTreemap, useChartTheme, seriesColor, type SankeyInput, type TreeGroup } from '@/components/charts'
 import { StatCard } from './Overview'
 
 export const ranges = [
@@ -89,7 +89,45 @@ export function AnalyticsPage() {
     const ids = (overview?.instances ?? []).map((i) => i.id).sort((a, b) => a - b)
     return (id: number) => seriesColor(theme, Math.max(0, ids.indexOf(id)))
   }, [overview, theme])
-  const instName = (id: number) => overview?.instances.find((i) => i.id === id)?.name ?? `#${id}`
+  const instName = useMemo(() => {
+    const m = new Map((overview?.instances ?? []).map((i) => [i.id, i.name]))
+    return (id: number) => m.get(id) ?? `#${id}`
+  }, [overview])
+  const { data: flows } = useQuery({
+    queryKey: ['flows', range, group, instance],
+    queryFn: () => api.get<SankeyInput>(`/stats/flows?range=${range}&clients=8${scopeQuery ? '&' + scopeQuery : ''}`),
+    refetchInterval: 60_000,
+    placeholderData: (prev) => prev,
+  })
+  // Outcomes keep one fixed colour each; "allowed" stays neutral so blocks stand out.
+  const outcomeColor = useMemo(() => {
+    // Blocked matches the "Blocked" series elsewhere (series 2).
+    const slot: Record<string, number> = { allowlisted: 2, blocked: 1, safebrowsing: 3, parental: 4, safesearch: 6, rewritten: 0 }
+    return (s: string) => (s in slot ? seriesColor(theme, slot[s]) : theme.faint)
+  }, [theme])
+  const outcomeLabel = useMemo(() => (s: string) => statusMeta[s as keyof typeof statusMeta]?.label ?? s, [])
+  const tree = useMemo<TreeGroup[]>(() => {
+    if (!data || !overview) return []
+    const byId = new Map(overview.instances.map((i) => [i.id, i]))
+    const groups = new Map<number, TreeGroup>()
+    for (const st of data.instances) {
+      const inst = byId.get(st.instance_id)
+      const g = inst?.group_id ? overview.groups.find((x) => x.id === inst.group_id) : undefined
+      const key = g?.id ?? 0
+      if (!groups.has(key)) groups.set(key, { name: g?.name ?? 'Ungrouped', color: g ? colorFor(g.name, g.color) : 'var(--border-strong)', children: [] })
+      groups.get(key)!.children.push({ id: String(st.instance_id), name: instName(st.instance_id), value: st.queries, blocked: st.blocked, color: instColor(st.instance_id) })
+    }
+    return [...groups.values()].filter((g) => g.children.some((c) => c.value > 0))
+  }, [data, overview, instName, instColor])
+  const byGroup = useMemo(
+    () =>
+      tree.map((g) => {
+        const q = g.children.reduce((n, c) => n + c.value, 0)
+        const b = g.children.reduce((n, c) => n + c.blocked, 0)
+        return { name: g.name, color: g.color, queries: q, blocked: b, pct: q ? (b * 100) / q : 0 }
+      }),
+    [tree],
+  )
 
   const toLog = (k: string, v: string) => {
     const qs = new URLSearchParams(scopeQuery)
@@ -173,6 +211,43 @@ export function AnalyticsPage() {
                     </div>
                   </Card>
                 </div>
+                <div className="grid gap-6 xl:grid-cols-5">
+                  <Card className="xl:col-span-3">
+                    <CardHeader title="Traffic share" description="Each block is an instance, sized by queries and grouped by settings group. Click one to focus it." />
+                    <div className="px-3 pb-4">
+                      <TrafficTreemap groups={tree} onSelect={(id) => set('instance', id)} />
+                    </div>
+                  </Card>
+                  <Card className="xl:col-span-2">
+                    <CardHeader title="Groups compared" description="Queries and blocking rate per settings group" />
+                    <div className="space-y-5 px-3 pb-4">
+                      <div>
+                      <div className="mb-1 px-2 text-xs font-medium text-muted">Queries</div>
+                      <BarList items={byGroup.map((g) => ({ key: g.name, value: g.queries, sub: fmtPct((g.queries * 100) / Math.max(1, t!.queries)) }))} colorFor={(k) => byGroup.find((g) => g.name === k)?.color ?? 'var(--series-1)'} />
+                      </div>
+                      <div>
+                        <div className="mb-1 px-2 text-xs font-medium text-muted">Blocked</div>
+                        <BarList
+                          items={[...byGroup].sort((a, b) => b.pct - a.pct).map((g) => ({ key: g.name, value: g.pct, sub: `${fmtNum(g.blocked)} blocked` }))}
+                          colorFor={(k) => byGroup.find((g) => g.name === k)?.color ?? 'var(--series-1)'}
+                          max={100}
+                          format={(n) => fmtPct(n)}
+                        />
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+                {flows && flows.clients.length > 0 && (
+                  <Card>
+                    <CardHeader
+                      title="Where queries go"
+                      description="From the busiest clients, through the instance that answered, to what happened. Hover a band to follow it."
+                    />
+                    <div className="px-3 pb-3">
+                      <FlowSankey flows={flows} instName={instName} instColor={instColor} outcomeLabel={outcomeLabel} outcomeColor={outcomeColor} />
+                    </div>
+                  </Card>
+                )}
                 <div className="grid gap-6 xl:grid-cols-3">
                   <Card>
                     <CardHeader title="Top queried domains" />

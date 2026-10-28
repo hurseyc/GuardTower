@@ -138,3 +138,44 @@ test.describe.serial('upgrades', () => {
     await expect(page.getByText('Upgrade settings saved')).toBeVisible()
   })
 })
+
+test.describe.serial('resilience and topology', () => {
+  test('placing both instances on one host warns before saving and flags the group', async ({ page }) => {
+    await signIn(page)
+    await page.getByRole('link', { name: 'Hosts & sites' }).click()
+    await page.getByRole('button', { name: 'New host' }).first().click()
+    const hd = page.getByRole('dialog')
+    await hd.getByLabel('Name').fill('nas-1')
+    await hd.getByRole('button', { name: 'Save' }).click()
+    await expect(page.getByText('nas-1', { exact: true })).toBeVisible()
+
+    await page.getByRole('link', { name: 'Instances' }).click()
+    for (const n of [1, 2]) {
+      await page.getByRole('row', { name: new RegExp(`agh-${n}`) }).getByRole('button', { name: 'Edit' }).click()
+      const dlg = page.getByRole('dialog')
+      await dlg.getByLabel('Runs on host').selectOption({ label: 'nas-1' })
+      if (n === 2) await expect(dlg.getByText(/All 2 DNS servers of Main network run on nas-1/)).toBeVisible()
+      await dlg.getByRole('button', { name: /^Save/ }).click()
+      await expect(dlg).toBeHidden()
+    }
+
+    await page.getByRole('link', { name: 'Groups' }).click()
+    await expect(page.getByText(/^Single point of failure · 1 host/)).toBeVisible()
+    await page.getByRole('link', { name: 'Overview' }).click()
+    await expect(page.getByRole('heading', { name: 'Single points of failure' })).toBeVisible()
+  })
+
+  test('topology draws hosts and instances and focuses a group', async ({ page }) => {
+    await signIn(page)
+    await page.getByRole('link', { name: 'Topology', exact: true }).click()
+    await expect(page.getByText('only host of Main network')).toBeVisible()
+    await expect(page.locator('.react-flow__node').filter({ hasText: 'agh-1' })).toBeVisible()
+    await page.getByRole('button', { name: /Main network/ }).click()
+    await expect(page).toHaveURL(/group=\d+/)
+    await expect(page.getByText(/All 2 DNS servers of Main network run on nas-1/)).toBeVisible()
+    await page.getByRole('tab', { name: /By group/ }).click()
+    await expect(page).toHaveURL(/view=logical/)
+    await page.locator('.react-flow__node').filter({ hasText: 'agh-2' }).click()
+    await expect(page).toHaveURL(/\/instances\/\d+/)
+  })
+})

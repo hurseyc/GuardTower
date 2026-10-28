@@ -147,6 +147,20 @@ func (s *Server) handleStatsSummary(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, sum)
 }
 
+func (s *Server) handleStatsFlows(w http.ResponseWriter, r *http.Request) {
+	f, err := s.filterFromRequest(r)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	fl, err := s.QueryLog.Flows(r.Context(), f, int(queryInt(r, "clients", 8)))
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	writeJSON(w, 200, fl)
+}
+
 func (s *Server) handleCollectorStates(w http.ResponseWriter, r *http.Request) {
 	states, err := s.QueryLog.ListStates(r.Context())
 	if err != nil {

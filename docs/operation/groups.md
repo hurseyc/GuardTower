@@ -44,4 +44,4 @@ Lists that have a natural key (filter lists by URL, rewrites by domain, clients 
 
 ## Redundancy
 
-For DNS to keep working when a server fails, each group should have at least two instances **on different hosts**. Record where instances run under [Hosts & sites](hosts.md).
+For DNS to keep working when a server fails, each group should have at least two instances **on different hosts**. Record where instances run under [Hosts & sites](hosts.md). Each group card then shows its redundancy score and any [single points of failure](resilience.md).

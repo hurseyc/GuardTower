@@ -16,6 +16,7 @@ import { SettingsPage } from '@/pages/Settings'
 import { ConfigPage } from '@/pages/Config'
 import { ChangesPage } from '@/pages/Changes'
 import { UpgradesPage } from '@/pages/Upgrades'
+import { TopologyPage } from '@/pages/Topology'
 
 function Gate() {
   const { loading, needsSetup, user, can } = useSession()
@@ -48,6 +49,7 @@ function Gate() {
         <Route path="instances/:id" element={<InstanceDetailPage />} />
         <Route path="groups" element={<GroupsPage />} />
         <Route path="hosts" element={<HostsPage />} />
+        <Route path="topology" element={<TopologyPage />} />
         <Route path="config" element={<ConfigPage />} />
         <Route path="changes" element={<ChangesPage />} />
         <Route path="upgrades" element={<UpgradesPage />} />

@@ -17,6 +17,7 @@ import (
 	"github.com/hurseyc/guardtower/internal/events"
 	"github.com/hurseyc/guardtower/internal/fleet"
 	"github.com/hurseyc/guardtower/internal/querylog"
+	"github.com/hurseyc/guardtower/internal/resilience"
 	"github.com/hurseyc/guardtower/internal/rollout"
 	"github.com/hurseyc/guardtower/internal/store"
 	"github.com/hurseyc/guardtower/internal/upgrade"
@@ -95,7 +96,7 @@ func NewWith(cfg Config, st *store.Store, box *crypto.Box) *App {
 	a.Upgrade = upgrade.New(st, fl, box, a.Rollout, bus, cfg.Log)
 	a.Upgrade.OnChanged = a.Poller.Kick
 	a.server = api.New(api.Deps{
-		Log: cfg.Log, Store: st, Auth: a.Auth, Fleet: fl, Poller: a.Poller, QueryLog: ql, Config: cs, Rollout: a.Rollout, Upgrade: a.Upgrade, Bus: bus,
+		Log: cfg.Log, Store: st, Auth: a.Auth, Fleet: fl, Poller: a.Poller, QueryLog: ql, Config: cs, Rollout: a.Rollout, Upgrade: a.Upgrade, Resilience: resilience.New(fl), Bus: bus,
 		WebFS: cfg.WebFS, DocsFS: cfg.DocsFS, Proxies: cfg.TrustedProxy,
 		Features: map[string]bool{},
 	})

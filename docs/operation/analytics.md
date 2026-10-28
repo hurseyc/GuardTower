@@ -25,6 +25,9 @@ The **Analytics** page charts DNS traffic across your fleet. Use the controls at
 - **Queries over time**: all queries and blocked queries per interval. Hover for exact numbers.
 - **Traffic by instance**: how load is spread across instances. A very uneven split usually means clients are pointed at one server, so the others aren't really sharing the load. Each instance keeps the same colour on every chart.
 - **Blocking rate by instance**: the blocked percentage per instance. Instances in a stricter group (for example a kids' network) should show a higher rate.
+- **Traffic share**: a treemap with one block per instance, sized by its queries and grouped by settings group, so you can see which instance and which group carries the most traffic. Hover for counts and the blocking rate; click a block to focus that instance.
+- **Groups compared**: queries and blocking rate per settings group, side by side.
+- **Where queries go**: a flow diagram from the busiest clients (the rest are grouped as *Other clients*), through the instance that answered, to the outcome (allowed, blocked, parental, safe search, rewritten…). Hover a band to follow one path. A client that only uses one server shows up as a single band; that is worth knowing when you plan for failures.
 - **Top queried / blocked domains** and **Top clients**: click any entry to open the [query log](query-log.md) filtered to it.
 - **Outcome**: how queries were handled. Click an outcome to see those queries.
 - **When queries happen**: total queries by weekday and hour, which makes unusual activity (such as traffic at 3 a.m.) easy to spot.

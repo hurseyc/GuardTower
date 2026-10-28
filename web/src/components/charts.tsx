@@ -2,12 +2,12 @@
 // index.css) so light and dark each use their own selected steps.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import * as echarts from 'echarts/core'
-import { HeatmapChart, LineChart } from 'echarts/charts'
+import { HeatmapChart, LineChart, SankeyChart, TreemapChart } from 'echarts/charts'
 import { AxisPointerComponent, GridComponent, LegendComponent, TooltipComponent, VisualMapComponent } from 'echarts/components'
 import { SVGRenderer } from 'echarts/renderers'
 import { cn, fmtCompact, fmtNum } from '@/lib/utils'
 
-echarts.use([LineChart, HeatmapChart, GridComponent, TooltipComponent, LegendComponent, AxisPointerComponent, VisualMapComponent, SVGRenderer])
+echarts.use([LineChart, HeatmapChart, TreemapChart, SankeyChart, GridComponent, TooltipComponent, LegendComponent, AxisPointerComponent, VisualMapComponent, SVGRenderer])
 
 /** Minimal ECharts host: one instance per element, resized with its container. */
 function EChart({ option, height, label }: { option: echarts.EChartsCoreOption; height: number; label: string }) {
@@ -274,4 +274,168 @@ export function Sparkline({ values, color = 'var(--series-1)', height = 28 }: { 
       <polyline points={pts} fill="none" stroke={color} strokeWidth="2" vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" />
     </svg>
   )
+}
+
+export interface TreeGroup {
+  name: string
+  color: string
+  children: { id: string; name: string; value: number; blocked: number; color: string }[]
+}
+
+/** Share of traffic: groups as blocks, instances inside, area = queries. */
+export function TrafficTreemap({ groups, height = 300, onSelect }: { groups: TreeGroup[]; height?: number; onSelect?: (id: string) => void }) {
+  const t = useChartTheme()
+  const total = groups.reduce((n, g) => n + g.children.reduce((m, c) => m + c.value, 0), 0)
+  const option = useMemo<echarts.EChartsCoreOption>(
+    () => ({
+      tooltip: {
+        ...tooltipBase(t),
+        formatter: (p: { data: { name: string; value: number; blocked?: number }; treePathInfo: { name: string }[] }) => {
+          const d = p.data
+          const share = total ? ((d.value * 100) / total).toFixed(1) : '0'
+          const path = p.treePathInfo.map((x) => x.name).filter(Boolean).join(' › ')
+          const blocked = d.blocked !== undefined && d.value ? ` · ${((d.blocked * 100) / d.value).toFixed(1)}% blocked` : ''
+          return `<b>${path}</b><br/>${fmtNum(d.value)} queries (${share}%)${blocked}`
+        },
+      },
+      series: [
+        {
+          type: 'treemap',
+          roam: false,
+          nodeClick: false,
+          breadcrumb: { show: false },
+          width: '100%',
+          height: '100%',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          upperLabel: { show: true, height: 22, color: t.text, fontSize: 12, fontWeight: 600 },
+          itemStyle: { borderColor: t.surface, borderWidth: 2, gapWidth: 2, borderRadius: 4 },
+          levels: [
+            { itemStyle: { borderWidth: 0, gapWidth: 4 } },
+            { itemStyle: { borderColor: t.border, borderWidth: 1, gapWidth: 2, borderRadius: 6 }, upperLabel: { show: true } },
+            { itemStyle: { borderColor: t.surface, borderWidth: 2, gapWidth: 2, borderRadius: 4 } },
+          ],
+          label: {
+            show: true,
+            color: '#fff',
+            fontSize: 12,
+            formatter: (p: { name: string; value: number }) => `${p.name}\n${total ? ((p.value * 100) / total).toFixed(0) : 0}%`,
+          },
+          data: groups.map((g) => ({
+            name: g.name,
+            itemStyle: { color: t.dark ? '#ffffff08' : '#0f172a06' },
+            children: g.children.map((c) => ({ id: c.id, name: c.name, value: c.value, blocked: c.blocked, itemStyle: { color: c.color } })),
+          })),
+        },
+      ],
+    }),
+    [groups, t, total],
+  )
+  return <EChartClickable option={option} height={height} label="Traffic share by group and instance" onClick={(d) => d?.id && onSelect?.(String(d.id))} />
+}
+
+export interface SankeyInput {
+  clients: { client: string; label: string; instance_id: number; count: number }[]
+  outcomes: { instance_id: number; status: string; count: number }[]
+}
+
+/** Clients → instances → outcomes, link width = queries. */
+export function FlowSankey({
+  flows,
+  instName,
+  instColor,
+  outcomeLabel,
+  outcomeColor,
+  height = 380,
+}: {
+  flows: SankeyInput
+  instName: (id: number) => string
+  instColor: (id: number) => string
+  outcomeLabel: (s: string) => string
+  outcomeColor: (s: string) => string
+  height?: number
+}) {
+  const t = useChartTheme()
+  const option = useMemo<echarts.EChartsCoreOption>(() => {
+    const nodes = new Map<string, { name: string; itemStyle: { color: string }; depth: number }>()
+    const clientName = (c: { client: string; label: string }) => (c.client ? `c:${c.client}` : 'c:other')
+    const links: { source: string; target: string; value: number }[] = []
+    for (const c of flows.clients) {
+      const id = clientName(c)
+      if (!nodes.has(id)) nodes.set(id, { name: id, itemStyle: { color: t.faint }, depth: 0 })
+      const inst = `i:${c.instance_id}`
+      if (!nodes.has(inst)) nodes.set(inst, { name: inst, itemStyle: { color: instColor(c.instance_id) }, depth: 1 })
+      links.push({ source: id, target: inst, value: c.count })
+    }
+    for (const o of flows.outcomes) {
+      const inst = `i:${o.instance_id}`
+      if (!nodes.has(inst)) nodes.set(inst, { name: inst, itemStyle: { color: instColor(o.instance_id) }, depth: 1 })
+      const out = `o:${o.status}`
+      if (!nodes.has(out)) nodes.set(out, { name: out, itemStyle: { color: outcomeColor(o.status) }, depth: 2 })
+      links.push({ source: inst, target: out, value: o.count })
+    }
+    const label = (id: string) => {
+      if (id === 'c:other') return 'Other clients'
+      if (id.startsWith('c:')) {
+        const c = flows.clients.find((x) => x.client === id.slice(2))
+        return c?.label ? `${c.label}` : id.slice(2)
+      }
+      if (id.startsWith('i:')) return instName(Number(id.slice(2)))
+      return outcomeLabel(id.slice(2))
+    }
+    return {
+      tooltip: {
+        ...tooltipBase(t),
+        formatter: (p: { dataType: string; data: { source?: string; target?: string; value?: number; name?: string }; value: number }) =>
+          p.dataType === 'edge' ? `${label(p.data.source!)} → ${label(p.data.target!)}<br/><b>${fmtNum(p.value)}</b> queries` : `<b>${label(p.data.name!)}</b><br/>${fmtNum(p.value)} queries`,
+      },
+      series: [
+        {
+          type: 'sankey',
+          left: 8,
+          right: 140,
+          top: 8,
+          bottom: 8,
+          nodeWidth: 10,
+          nodeGap: 10,
+          layoutIterations: 32,
+          emphasis: { focus: 'adjacency' },
+          label: { color: t.text, fontSize: 12, formatter: (p: { name: string }) => label(p.name) },
+          lineStyle: { color: 'gradient', opacity: t.dark ? 0.35 : 0.3, curveness: 0.5 },
+          itemStyle: { borderWidth: 0 },
+          data: [...nodes.values()],
+          links,
+        },
+      ],
+    }
+  }, [flows, t, instName, instColor, outcomeLabel, outcomeColor])
+  return <EChart option={option} height={height} label="Query flow from clients through instances to outcomes" />
+}
+
+/** EChart that reports clicks on data items. */
+function EChartClickable({ option, height, label, onClick }: { option: echarts.EChartsCoreOption; height: number; label: string; onClick: (data: { id?: string } | undefined) => void }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const chart = useRef<echarts.ECharts | null>(null)
+  const cb = useRef(onClick)
+  useEffect(() => {
+    cb.current = onClick
+  }, [onClick])
+  useEffect(() => {
+    if (!ref.current) return
+    const c = echarts.init(ref.current, undefined, { renderer: 'svg' })
+    chart.current = c
+    c.on('click', (p) => cb.current(p.data as { id?: string } | undefined))
+    const ro = new ResizeObserver(() => c.resize())
+    ro.observe(ref.current)
+    return () => {
+      ro.disconnect()
+      c.dispose()
+    }
+  }, [])
+  useEffect(() => {
+    chart.current?.setOption(option, { notMerge: true })
+  }, [option])
+  return <div ref={ref} role="img" aria-label={label} style={{ height, width: '100%' }} />
 }

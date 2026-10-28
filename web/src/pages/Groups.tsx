@@ -6,10 +6,12 @@ import { Boxes, Pencil, Plus, Trash2, Users } from 'lucide-react'
 import { api, type Group, type Overview } from '@/lib/api'
 import { useSession } from '@/lib/session'
 import { colorFor, palette } from '@/lib/utils'
+import { FindingList, ScoreIcon, scoreLabel, useResilience } from '@/components/Resilience'
 import { PageHeader } from '@/components/AppShell'
 import { Badge, Button, Card, ConfirmDialog, Dialog, EmptyState, Field, Input, Skeleton, StatusDot } from '@/components/ui'
 
 export function GroupsPage() {
+  const { data: res } = useResilience()
   const { can } = useSession()
   const qc = useQueryClient()
   const { data, isLoading } = useQuery({ queryKey: ['overview'], queryFn: () => api.get<Overview>('/overview') })
@@ -70,6 +72,7 @@ export function GroupsPage() {
             {data?.groups.map((g) => {
               const color = colorFor(g.name, g.color)
               const online = g.instance_ids.filter((id) => instById.get(id)?.status?.online).length
+              const rep = res?.groups.find((x) => x.group_id === g.id)
               return (
                 <Card key={g.id} className="relative overflow-hidden">
                   <div className="absolute inset-x-0 top-0 h-1" style={{ background: color }} />
@@ -94,7 +97,19 @@ export function GroupsPage() {
                       <Badge tone={g.instance_ids.length === 0 ? 'neutral' : online === g.instance_ids.length ? 'ok' : 'warn'}>
                         {online}/{g.instance_ids.length} online
                       </Badge>
+                      {rep && g.instance_ids.length > 0 && (
+                        <span className="inline-flex items-center gap-1">
+                          <ScoreIcon score={rep.score} className="h-3.5 w-3.5" />
+                          {scoreLabel[rep.score]}
+                          {rep.hosts > 0 && ` · ${rep.hosts} host${rep.hosts === 1 ? '' : 's'}`}
+                        </span>
+                      )}
                     </div>
+                    {rep && rep.findings.length > 0 && (
+                      <div className="mt-3">
+                        <FindingList findings={rep.findings} />
+                      </div>
+                    )}
                     <div className="mt-3 space-y-1.5">
                       {g.instance_ids.length === 0 && <p className="text-sm text-faint">No instances in this group.</p>}
                       {g.instance_ids.map((id) => {

@@ -176,3 +176,21 @@ body {
 .prose-gt th { background: var(--bg-subtle); font-weight: 600; }
 .prose-gt blockquote { border-left: 3px solid var(--accent); padding: 0.25rem 1rem; margin: 1rem 0; color: var(--fg-muted); background: var(--bg-subtle); border-radius: 0 8px 8px 0; }
 .prose-gt hr { border: 0; border-top: 1px solid var(--border); margin: 2rem 0; }
+
+/* React Flow controls follow the theme. */
+.react-flow__controls {
+  box-shadow: none;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+.react-flow__controls-button {
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+  color: var(--fg-muted);
+  fill: currentColor;
+}
+.react-flow__controls-button:hover {
+  background: var(--bg-hover);
+  color: var(--fg);
+}

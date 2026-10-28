@@ -28,7 +28,7 @@ Running more than one AdGuard Home for redundancy, or separate instances for dif
 - **Groups with different settings.** Base settings are shared by everyone, each *group* layers its own on top (for example *Main network* vs *Kids VLAN*), and individual instances can override the rare exception.
 - **Safe changes.** Every change is a reviewable plan, rolled out canary-first with a DNS health check and **automatic rollback**. A snapshot is taken before every apply.
 - **Live fleet health.** Status, versions, protection state and latency for every instance, pushed to the browser in real time.
-- **Single-point-of-failure warnings.** GuardTower knows which host, power domain and site each instance runs on, and warns when a group's "redundant" servers would fail together.
+- **Single-point-of-failure warnings and a topology map.** GuardTower knows which host, power domain and site each instance runs on, scores every group's redundancy, warns *before* you save a placement that puts a group's servers on one host, and draws the fleet (physical or by group) with drill-down.
 - **Built-in wiki.** Setup, operation and admin docs ship inside the app, with contextual help on every screen (<kbd>?</kbd>) and full-text search (<kbd>⌘K</kbd>).
 - **Secure by default.** argon2id passwords, encrypted credentials, CSRF protection, roles (admin / operator / viewer), a full audit log, and observe-only mode until you choose to apply changes.
 - **One small binary.** Pure Go with an embedded UI and SQLite. Run it in Docker, a Proxmox LXC or as a systemd service on amd64, arm64 or armv7.
@@ -37,7 +37,7 @@ Running more than one AdGuard Home for redundancy, or separate instances for dif
 - **Fleet upgrades of AdGuard Home.** Upgrade LXC, VM and Docker installs from one page, one instance at a time, with DNS health gates and automatic rollback (Docker via a socket proxy, or SSH), pinning, and optional maintenance windows per group.
 - **Query-log warehouse & analytics.** Every query from every instance is stored and searchable in one place, with a live tail, long-term charts, top domains and clients, and a per-instance comparison.
 
-> **Roadmap (in progress):** a topology map and a **Family DNS** section with per-person insight into blocked adult content. See [the plan](docs/dev/PROGRESS.md).
+> **Roadmap (in progress):** a **Family DNS** section with per-person insight into blocked adult content. See [the plan](docs/dev/PROGRESS.md).
 
 ## Quick start
 

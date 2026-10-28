@@ -5,6 +5,7 @@ import { Building2, HardDrive, Pencil, Plus, Server, Trash2 } from 'lucide-react
 import { api, type Host, type HostKind, type Overview, type Site } from '@/lib/api'
 import { useSession } from '@/lib/session'
 import { PageHeader } from '@/components/AppShell'
+import { useResilience } from '@/components/Resilience'
 import { Badge, Button, Card, CardHeader, ConfirmDialog, Dialog, EmptyState, Field, Input, Select, StatusDot, Textarea } from '@/components/ui'
 
 const kinds: { value: HostKind; label: string }[] = [
@@ -21,6 +22,7 @@ const kindLabel = Object.fromEntries(kinds.map((k) => [k.value, k.label]))
 
 export function HostsPage() {
   const { can } = useSession()
+  const { data: res } = useResilience()
   const qc = useQueryClient()
   const { data } = useQuery({ queryKey: ['overview'], queryFn: () => api.get<Overview>('/overview') })
   const [edit, setEdit] = useState<{ open: boolean; host?: Host }>({ open: false })
@@ -81,6 +83,7 @@ export function HostsPage() {
           <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
             {hosts.map((h) => {
               const insts = instancesOn(h.id)
+              const spofGroups = (res?.spof_hosts[String(h.id)] ?? []).map((gid) => res?.groups.find((g) => g.group_id === gid)?.name).filter(Boolean)
               return (
                 <Card key={h.id} className="p-5">
                   <div className="flex items-start gap-3">
@@ -96,6 +99,11 @@ export function HostsPage() {
                       <div className="mt-2 flex flex-wrap gap-1">
                         {h.site_id ? <Badge>site: {siteName.get(h.site_id)}</Badge> : null}
                         {h.power ? <Badge>power: {h.power}</Badge> : null}
+                        {spofGroups.length > 0 && (
+                          <Badge tone="warn" title="If this host goes down, these groups lose all their DNS servers">
+                            only host of {spofGroups.join(', ')}
+                          </Badge>
+                        )}
                       </div>
                     </div>
                     {can('admin') && (
