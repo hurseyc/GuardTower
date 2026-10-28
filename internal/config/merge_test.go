@@ -159,3 +159,54 @@ func TestValidateLayer(t *testing.T) {
 		t.Fatal("rewrite without domain accepted")
 	}
 }
+
+// Importing an instance into a group must make Base + group equal the
+// instance, while storing only what differs from Base.
+func TestLayerToMatch(t *testing.T) {
+	filtering := SectionByKey("filtering")
+	dns := SectionByKey("dns")
+	base := map[*Section]Doc{
+		filtering: doc(t, `{"enabled": true, "filters": {"upsert": [
+			{"url": "https://a/list1", "name": "Ads", "enabled": true},
+			{"url": "https://a/list2", "name": "Trackers", "enabled": true}], "remove": []},
+			"user_rules": {"add": ["||ads.example^", "||track.example^"], "remove": []}}`),
+		dns: doc(t, `{"upstream_dns": ["https://dns.quad9.net/dns-query"], "cache_enabled": true}`),
+	}
+	live := map[*Section]Doc{
+		filtering: doc(t, `{"enabled": true, "interval": 24, "filters": [
+			{"url": "https://a/list1", "name": "Ads", "enabled": true},
+			{"url": "https://a/nsfw", "name": "NSFW", "enabled": true}],
+			"whitelist_filters": [], "user_rules": ["||ads.example^", "||tiktok.com^"]}`),
+		dns: doc(t, `{"upstream_dns": ["https://dns.quad9.net/dns-query"], "cache_enabled": false, "ratelimit": 20}`),
+	}
+	for sec, want := range map[*Section]string{
+		// list2 and the tracker rule come from Base but aren't on the instance: removed.
+		filtering: `{"filters": {"upsert": [{"url": "https://a/nsfw", "name": "NSFW", "enabled": true}], "remove": ["https://a/list2"]},
+			"interval": 24, "user_rules": {"add": ["||tiktok.com^"], "remove": ["||track.example^"]},
+			"whitelist_filters": {"upsert": [], "remove": []}}`,
+		// The upstream matches Base, so it isn't copied.
+		dns: `{"cache_enabled": false, "ratelimit": 20}`,
+	} {
+		inherited, _ := Merge(sec, []Layer{{Scope: ScopeBase, Doc: base[sec]}})
+		got := LayerToMatch(sec, inherited, live[sec])
+		if !jsonEqual(got, doc(t, want)) {
+			b, _ := json.Marshal(got)
+			t.Fatalf("%s layer: %s", sec.Key, b)
+		}
+		eff, _ := Merge(sec, []Layer{{Scope: ScopeBase, Doc: base[sec]}, {Scope: ScopeGroup, Doc: got}})
+		if d := Diff(sec, eff, live[sec]); len(d) != 0 {
+			t.Fatalf("%s: Base + imported layer still differs from the instance: %+v", sec.Key, d)
+		}
+	}
+	// Into Base (nothing below), it's the instance's full settings.
+	full := LayerToMatch(dns, Doc{}, live[dns])
+	if len(full) != 3 {
+		t.Fatalf("base import: %+v", full)
+	}
+}
+
+func jsonEqual(a, b any) bool {
+	x, _ := json.Marshal(asJSON(a))
+	y, _ := json.Marshal(asJSON(b))
+	return string(x) == string(y)
+}

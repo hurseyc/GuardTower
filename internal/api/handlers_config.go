@@ -78,13 +78,14 @@ func (s *Server) handleImportBaseline(w http.ResponseWriter, r *http.Request) {
 		body.Scope = config.ScopeBase
 	}
 	u := userFrom(r.Context())
-	if err := s.Config.ImportBaseline(r.Context(), body.InstanceID, config.ScopeRef{Scope: body.Scope, ID: body.ID}, body.Sections, u.Username); err != nil {
+	sum, err := s.Config.ImportFromInstance(r.Context(), body.InstanceID, config.ScopeRef{Scope: body.Scope, ID: body.ID}, body.Sections, u.Username)
+	if err != nil {
 		s.fail(w, r, badRequest(err))
 		return
 	}
 	s.audit(r, "config.import", body.Scope, body)
 	s.kickSync()
-	writeJSON(w, 200, map[string]bool{"ok": true})
+	writeJSON(w, 200, sum)
 }
 
 func (s *Server) handleInstanceConfig(w http.ResponseWriter, r *http.Request) {

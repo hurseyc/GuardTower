@@ -214,37 +214,94 @@ func (s *Service) Effective(ctx context.Context, instanceID int64, live bool) ([
 	return out, nil
 }
 
+// ImportSummary says what an import stored, per section: the number of
+// fields set at the target level (0 means the level inherits everything and
+// its layer for that section was removed).
+type ImportSummary struct {
+	Sections map[string]int `json:"sections"`
+}
+
 // ImportBaseline reads an instance's live settings for the chosen sections
-// and stores them as the layers of target (usually base). Existing layers
-// for those sections are replaced.
+// and stores them as the layers of target, so that target's effective
+// settings equal the instance's. Into a group or instance, only what differs
+// from the levels below is stored. Existing layers for those sections are
+// replaced.
 func (s *Service) ImportBaseline(ctx context.Context, instanceID int64, target ScopeRef, sections []string, by string) error {
+	_, err := s.ImportFromInstance(ctx, instanceID, target, sections, by)
+	return err
+}
+
+// ImportFromInstance is ImportBaseline, reporting what was stored.
+func (s *Service) ImportFromInstance(ctx context.Context, instanceID int64, target ScopeRef, sections []string, by string) (*ImportSummary, error) {
+	if err := target.validate(); err != nil {
+		return nil, err
+	}
 	in, err := s.fleet.GetInstance(ctx, instanceID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	c, err := s.fleet.Client(in)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if len(sections) == 0 {
 		for _, sec := range Sections {
 			sections = append(sections, sec.Key)
 		}
 	}
+	lower, err := s.lowerLayers(ctx, target)
+	if err != nil {
+		return nil, err
+	}
+	sum := &ImportSummary{Sections: map[string]int{}}
 	for _, key := range sections {
 		sec := SectionByKey(key)
 		if sec == nil {
-			return fmt.Errorf("unknown section %q", key)
+			return nil, fmt.Errorf("unknown section %q", key)
 		}
 		live, err := sec.read(ctx, c)
 		if err != nil {
-			return fmt.Errorf("%s: read from %s: %w", key, in.Name, err)
+			return nil, fmt.Errorf("%s: read from %s: %w", key, in.Name, err)
 		}
-		if _, err := s.SetLayer(ctx, target, key, LayerFromLive(sec, live), by); err != nil {
-			return err
+		inherited, _ := Merge(sec, lower[key])
+		d := LayerToMatch(sec, inherited, live)
+		if _, err := s.SetLayer(ctx, target, key, d, by); err != nil {
+			return nil, err
+		}
+		sum.Sections[key] = len(d)
+	}
+	return sum, nil
+}
+
+// lowerLayers returns the layers below target, lowest first: nothing for
+// Base, Base for a group, Base and the instance's group for an instance.
+func (s *Service) lowerLayers(ctx context.Context, target ScopeRef) (map[string][]Layer, error) {
+	refs := []ScopeRef{}
+	names := []string{}
+	switch target.Scope {
+	case ScopeGroup:
+		refs, names = append(refs, ScopeRef{Scope: ScopeBase}), append(names, "Base")
+	case ScopeInstance:
+		refs, names = append(refs, ScopeRef{Scope: ScopeBase}), append(names, "Base")
+		in, err := s.fleet.GetInstance(ctx, target.ID)
+		if err != nil {
+			return nil, err
+		}
+		if in.GroupID > 0 {
+			refs, names = append(refs, ScopeRef{Scope: ScopeGroup, ID: in.GroupID}), append(names, "group")
 		}
 	}
-	return nil
+	out := map[string][]Layer{}
+	for i, r := range refs {
+		ls, err := s.GetLayers(ctx, r)
+		if err != nil {
+			return nil, err
+		}
+		for sec, li := range ls {
+			out[sec] = append(out[sec], Layer{Scope: r.Scope, ID: r.ID, Name: names[i], Doc: li.Doc})
+		}
+	}
+	return out, nil
 }
 
 // SyncSummary is the stored comparison result for one instance.

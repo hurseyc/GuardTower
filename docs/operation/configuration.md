@@ -54,14 +54,27 @@ So a *Kids VLAN* group can add an adult-content block list and a few custom rule
 
 TLS certificates, DHCP and the web-interface address are deliberately **not** managed: they are specific to each machine.
 
-## Getting started: import a baseline
+## Getting started: copy settings from an instance
 
-1. Open **Configuration** with **Base** selected and click **Import from an instance**.
-2. Pick the instance whose settings are closest to what you want everywhere, and choose the sections to import.
+You rarely need to type settings in by hand: copy them from an AdGuard Home instance you've already set up.
+
+1. Open **Configuration** with **Base** selected and click **Copy from an instance**.
+2. Pick the instance whose settings are closest to what you want everywhere, and choose the sections to copy.
 3. GuardTower copies that instance's current settings into Base. That instance is now in sync, and every other instance shows its differences.
-4. Select a group and set what should differ for it.
 
-You can also import into a **group** (for example from the instance that already has the kids' settings).
+### Into a group
+
+Select the group (for example **Family**) and click **Copy from an instance**, or **Copy settings from an instance** on a group that doesn't set anything yet. The group's own instances are listed first.
+
+The group then ends up with **exactly** that instance's settings for the sections you picked, but GuardTower only stores what differs from Base:
+
+- a value Base already sets the same way isn't copied, so changing it in Base later still reaches the group;
+- a list item the instance has and Base doesn't is added for the group (for example an NSFW block list);
+- a list item Base adds but the instance doesn't have is removed for the group.
+
+The toast tells you how many sections now differ from Base. Sections that already match are left inheriting. Copying into a single instance's overrides works the same way, on top of Base and its group.
+
+Nothing changes on any AdGuard Home server until you roll it out from [Review & apply](changes.md).
 
 ## Checking sync
 
