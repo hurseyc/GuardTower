@@ -131,7 +131,7 @@ export function UpgradesPage() {
           <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-subtle p-3 text-sm">
             <Eye className="h-4 w-4 text-info" />
             <span className="flex-1">
-              <strong>Observe mode is on.</strong> You can preview upgrades; starting one needs observe mode off (on <Link to="/changes" className="text-accent hover:underline">Review & apply</Link> or under Settings).
+              <strong>Observe mode is on.</strong> You can preview upgrades; starting one needs observe mode off (on <Link to="/changes" className="text-accent underline underline-offset-2">Review & apply</Link> or under Settings).
             </span>
           </div>
         )}

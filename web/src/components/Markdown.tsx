@@ -24,6 +24,8 @@ export function Markdown({ source, baseSlug, onNavigate }: { source: string; bas
         components={{
           h2: ({ children }) => <h2 id={slugify(textOf(children))}>{children}</h2>,
           h3: ({ children }) => <h3 id={slugify(textOf(children))}>{children}</h3>,
+          // Focusable so wide code blocks can be scrolled with the keyboard.
+          pre: ({ children }) => <pre tabIndex={0}>{children}</pre>,
           a: ({ href = '', children }) => {
             if (/^[a-z]+:/i.test(href)) {
               return (

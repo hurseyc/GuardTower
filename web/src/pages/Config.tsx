@@ -288,7 +288,7 @@ function FieldRow({
     <div className="grid gap-3 px-5 py-4 md:grid-cols-[16rem_1fr]">
       <div>
         <div className="flex items-center gap-2">
-          <Switch checked={set} disabled={readOnly} onCheckedChange={(on) => onChange(on ? defaultFor(f, inherited, isBase) : undefined)} />
+          <Switch label={`${isBase ? 'Manage' : 'Set at this level'}: ${f.label}`} checked={set} disabled={readOnly} onCheckedChange={(on) => onChange(on ? defaultFor(f, inherited, isBase) : undefined)} />
           <span className="text-sm font-medium">{f.label}</span>
         </div>
         <p className="mt-1 pl-11 text-xs text-faint">
@@ -340,7 +340,7 @@ function FieldEditor({
     case 'bool':
       return (
         <label className="inline-flex items-center gap-2 text-sm">
-          <Switch checked={!!value} disabled={readOnly} onCheckedChange={onChange} /> {value ? 'On' : 'Off'}
+          <Switch label={f.label} checked={!!value} disabled={readOnly} onCheckedChange={onChange} /> {value ? 'On' : 'Off'}
         </label>
       )
     case 'int':
@@ -441,7 +441,7 @@ function KeyedEditor({
           {editable.map((x) =>
             x.kind === 'bool' ? (
               <label key={x.name} className="flex items-center gap-2 pb-2 text-xs text-muted">
-                <Switch checked={!!it[x.name]} disabled={readOnly} onCheckedChange={(v) => update(i, x.name, v)} /> {x.label}
+                <Switch label={x.label} checked={!!it[x.name]} disabled={readOnly} onCheckedChange={(v) => update(i, x.name, v)} /> {x.label}
               </label>
             ) : (
               <Field key={x.name} label={x.label}>

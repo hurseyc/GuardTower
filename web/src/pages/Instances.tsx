@@ -85,7 +85,7 @@ export function InstancesPage() {
         <Card>
           <div className="flex flex-wrap items-center gap-2 border-b border-border p-3">
             <Input placeholder="Filter by name, URL, tag or version…" value={q} onChange={(e) => setQ(e.target.value)} className="max-w-xs" />
-            <Select value={groupFilter} onChange={(e) => setGroupFilter(e.target.value)} className="w-44">
+            <Select value={groupFilter} onChange={(e) => setGroupFilter(e.target.value)} className="w-44" aria-label="Filter by group">
               <option value="all">All groups</option>
               <option value="0">Ungrouped</option>
               {groups.map((g) => (
@@ -94,7 +94,7 @@ export function InstancesPage() {
                 </option>
               ))}
             </Select>
-            <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-36">
+            <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-36" aria-label="Filter by status">
               <option value="all">Any status</option>
               <option value="online">Online</option>
               <option value="offline">Offline</option>

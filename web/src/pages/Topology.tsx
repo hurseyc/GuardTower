@@ -10,8 +10,7 @@ import { PageHeader } from '@/components/AppShell'
 import { FindingList, ScoreIcon, type GroupReport } from '@/components/Resilience'
 import { useResilience } from '@/lib/resilience'
 import { scoreLabel } from '@/lib/labels'
-import { Card, EmptyState, Skeleton, TabsList, TabsTrigger } from '@/components/ui'
-import * as Tabs from '@radix-ui/react-tabs'
+import { Card, EmptyState, Segmented, Skeleton } from '@/components/ui'
 
 // ---- node renderers ----
 
@@ -38,7 +37,7 @@ function InstanceNode({ data }: NodeProps<Node<InstanceData>>) {
     >
       <Handle type="target" position={Position.Left} id="l" className="!h-1.5 !w-1.5 !border-0 !bg-border-strong" />
       <div className="flex items-center gap-2">
-        <span className={cn('h-2 w-2 shrink-0 rounded-full', up ? 'bg-ok' : 'bg-danger')} aria-label={up ? 'online' : 'offline'} />
+        <span role="img" className={cn('h-2 w-2 shrink-0 rounded-full', up ? 'bg-ok' : 'bg-danger')} aria-label={up ? 'online' : 'offline'} />
         <span className="truncate text-sm font-medium">{inst.name}</span>
         <span className="ml-auto font-mono text-[10px] text-faint">{inst.status?.version}</span>
       </div>
@@ -324,16 +323,15 @@ export function TopologyPage() {
       <PageHeader title="Topology" description="Where every DNS server runs, which group it serves, and what would fail together. Click a group to focus it, or an instance to open it." />
       <div className="space-y-4 p-6">
         <div className="flex flex-wrap items-center gap-3">
-          <Tabs.Root value={view} onValueChange={(v) => set('view', v === 'physical' ? '' : v)}>
-            <TabsList>
-              <TabsTrigger value="physical">
-                <Server className="mr-1.5 inline h-3.5 w-3.5" /> Physical
-              </TabsTrigger>
-              <TabsTrigger value="logical">
-                <Network className="mr-1.5 inline h-3.5 w-3.5" /> By group
-              </TabsTrigger>
-            </TabsList>
-          </Tabs.Root>
+          <Segmented
+            label="Layout"
+            value={view}
+            onChange={(v) => set('view', v === 'physical' ? '' : v)}
+            options={[
+              { value: 'physical', label: <><Server className="mr-1.5 inline h-3.5 w-3.5" /> Physical</> },
+              { value: 'logical', label: <><Network className="mr-1.5 inline h-3.5 w-3.5" /> By group</> },
+            ]}
+          />
           <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Focus a group">
             <button onClick={() => set('group', '')} className={cn('rounded-full border px-3 py-1 text-xs', !focus ? 'border-ring bg-accent-soft font-medium' : 'border-border hover:bg-hover')} aria-pressed={!focus}>
               All groups

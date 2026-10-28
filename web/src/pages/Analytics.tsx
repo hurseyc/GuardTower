@@ -6,7 +6,7 @@ import { api, type Overview, type StatsSummary } from '@/lib/api'
 import { colorFor, fmtCompact, fmtNum, fmtPct } from '@/lib/utils'
 import { statusMeta } from '@/lib/status'
 import { PageHeader } from '@/components/AppShell'
-import { Card, CardHeader, EmptyState, Select, Skeleton, Tabs, TabsList, TabsTrigger } from '@/components/ui'
+import { Card, CardHeader, EmptyState, Select, Segmented, Skeleton } from '@/components/ui'
 import { BarList, FlowSankey, HourHeatmap, TimeSeriesChart, TrafficTreemap, type SankeyInput, type TreeGroup } from '@/components/charts'
 import { seriesColor } from '@/lib/chartTheme'
 import { useChartTheme } from '@/lib/chartTheme'
@@ -17,15 +17,7 @@ export function FleetFilterBar({ overview, range, group, instance, set, showRang
   return (
     <div className="mt-4 flex flex-wrap items-center gap-2">
       {showRange && range && (
-        <Tabs value={range} onValueChange={(v) => set('range', v)}>
-          <TabsList>
-            {ranges.map((r) => (
-              <TabsTrigger key={r.value} value={r.value}>
-                {r.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+        <Segmented label="Time range" value={range} options={ranges} onChange={(v) => set('range', v)} />
       )}
       <Select value={group} onChange={(e) => set('group', e.target.value)} className="w-44" aria-label="Group">
         <option value="">All groups</option>

@@ -209,7 +209,7 @@ export function AppShell() {
           </div>
         </header>
         {can('admin') && <UpdateBanner />}
-        <main className="min-h-0 flex-1 overflow-y-auto">
+        <main id="main" tabIndex={0} className="min-h-0 flex-1 overflow-y-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
           <ErrorBoundary resetKey={loc.pathname}>
             <Outlet />
           </ErrorBoundary>
