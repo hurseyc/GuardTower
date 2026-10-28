@@ -1,0 +1,69 @@
+# GoReleaser v2 – builds release binaries and Linux packages.
+# The web UI must be built (web/dist) before running goreleaser.
+version: 2
+project_name: guardtower
+
+builds:
+  - id: guardtower
+    main: ./cmd/guardtower
+    binary: guardtower
+    env: [CGO_ENABLED=0]
+    flags: [-trimpath]
+    ldflags:
+      - -s -w
+      - -X github.com/hurseyc/guardtower/internal/version.Version={{ .Tag }}
+      - -X github.com/hurseyc/guardtower/internal/version.Commit={{ .ShortCommit }}
+      - -X github.com/hurseyc/guardtower/internal/version.Date={{ .Date }}
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64, arm]
+    goarm: ["7"]
+    ignore:
+      - { goos: darwin, goarch: arm }
+      - { goos: windows, goarch: arm }
+
+archives:
+  - formats: [tar.gz]
+    format_overrides:
+      - { goos: windows, formats: [zip] }
+    files: [LICENSE, README.md, install/guardtower.service]
+
+nfpms:
+  - package_name: guardtower
+    vendor: GuardTower contributors
+    homepage: https://github.com/hurseyc/GuardTower
+    maintainer: GuardTower maintainers <noreply@github.com>
+    description: Fleet manager for AdGuard Home
+    license: MIT
+    formats: [deb, rpm]
+    bindir: /usr/bin
+    contents:
+      - src: install/guardtower.service
+        dst: /lib/systemd/system/guardtower.service
+      - dst: /var/lib/guardtower
+        type: dir
+        file_info: { mode: 0750, owner: guardtower, group: guardtower }
+    scripts:
+      preinstall: install/pkg/preinstall.sh
+      postinstall: install/pkg/postinstall.sh
+      preremove: install/pkg/preremove.sh
+
+checksum:
+  name_template: checksums.txt
+
+sboms:
+  - artifacts: archive
+
+signs:
+  - cmd: cosign
+    certificate: "${artifact}.pem"
+    args: [sign-blob, "--output-certificate=${certificate}", "--output-signature=${signature}", "${artifact}", "--yes"]
+    artifacts: checksum
+
+changelog:
+  disable: true # release-please writes CHANGELOG.md
+
+release:
+  github:
+    owner: hurseyc
+    name: GuardTower
+  mode: keep-existing

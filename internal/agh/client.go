@@ -203,15 +203,15 @@ func friendlyNetErr(err error) error {
 	}
 	var cerr *tls.CertificateVerificationError
 	if errors.As(err, &cerr) {
-		return fmt.Errorf("TLS certificate not trusted (%v) – upload the CA or enable 'skip TLS verification' for this instance", cerr.Err)
+		return fmt.Errorf("TLS certificate not trusted (%w) – upload the CA or enable 'skip TLS verification' for this instance", cerr.Err)
 	}
 	var herr x509.HostnameError
 	if errors.As(err, &herr) {
-		return fmt.Errorf("TLS certificate does not match host: %v", herr)
+		return fmt.Errorf("TLS certificate does not match host: %w", herr)
 	}
 	var operr *net.OpError
 	if errors.As(err, &operr) {
-		return fmt.Errorf("cannot connect: %v", operr.Err)
+		return fmt.Errorf("cannot connect: %w", operr.Err)
 	}
 	return err
 }

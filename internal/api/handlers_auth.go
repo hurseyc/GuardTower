@@ -164,7 +164,7 @@ func (s *Server) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleUpdateUser(w http.ResponseWriter, r *http.Request) {
-	id, err := idParam(r, "id")
+	id, err := idParam(r)
 	if err != nil {
 		s.fail(w, r, err)
 		return
@@ -183,7 +183,7 @@ func (s *Server) handleUpdateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
-	id, err := idParam(r, "id")
+	id, err := idParam(r)
 	if err != nil {
 		s.fail(w, r, err)
 		return

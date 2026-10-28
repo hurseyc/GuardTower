@@ -35,7 +35,7 @@ func Open(ctx context.Context, dataDir string) (*Store, error) {
 
 // OpenPath opens the database at an explicit path. Use ":memory:" in tests.
 func OpenPath(ctx context.Context, path string) (*Store, error) {
-	dsn := path
+	var dsn string
 	pragmas := []string{
 		"_pragma=journal_mode(WAL)",
 		"_pragma=busy_timeout(10000)",

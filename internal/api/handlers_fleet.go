@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 
@@ -24,7 +25,7 @@ func (s *Server) handleListInstances(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleGetInstance(w http.ResponseWriter, r *http.Request) {
-	id, err := idParam(r, "id")
+	id, err := idParam(r)
 	if err != nil {
 		s.fail(w, r, err)
 		return
@@ -54,7 +55,7 @@ func (s *Server) handleCreateInstance(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleUpdateInstance(w http.ResponseWriter, r *http.Request) {
-	id, err := idParam(r, "id")
+	id, err := idParam(r)
 	if err != nil {
 		s.fail(w, r, err)
 		return
@@ -66,7 +67,7 @@ func (s *Server) handleUpdateInstance(w http.ResponseWriter, r *http.Request) {
 	}
 	inst, err := s.Fleet.UpdateInstance(r.Context(), id, in)
 	if err != nil {
-		if err == fleet.ErrNotFound {
+		if errors.Is(err, fleet.ErrNotFound) {
 			s.fail(w, r, err)
 			return
 		}
@@ -79,7 +80,7 @@ func (s *Server) handleUpdateInstance(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDeleteInstance(w http.ResponseWriter, r *http.Request) {
-	id, err := idParam(r, "id")
+	id, err := idParam(r)
 	if err != nil {
 		s.fail(w, r, err)
 		return
@@ -130,7 +131,7 @@ func (s *Server) handleTestInstance(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleRefreshInstance(w http.ResponseWriter, r *http.Request) {
-	id, err := idParam(r, "id")
+	id, err := idParam(r)
 	if err != nil {
 		s.fail(w, r, err)
 		return
@@ -150,7 +151,7 @@ func (s *Server) handleRefreshInstance(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleSetProtection(w http.ResponseWriter, r *http.Request) {
-	id, err := idParam(r, "id")
+	id, err := idParam(r)
 	if err != nil {
 		s.fail(w, r, err)
 		return
@@ -197,7 +198,7 @@ func (s *Server) handleSaveGroup(w http.ResponseWriter, r *http.Request) {
 	var id int64
 	if r.Method == http.MethodPut {
 		var err error
-		if id, err = idParam(r, "id"); err != nil {
+		if id, err = idParam(r); err != nil {
 			s.fail(w, r, err)
 			return
 		}
@@ -213,7 +214,7 @@ func (s *Server) handleSaveGroup(w http.ResponseWriter, r *http.Request) {
 	}
 	g, err := s.Fleet.SaveGroup(r.Context(), id, body.Name, body.Description, body.Color)
 	if err != nil {
-		if err == fleet.ErrNotFound {
+		if errors.Is(err, fleet.ErrNotFound) {
 			s.fail(w, r, err)
 			return
 		}
@@ -225,7 +226,7 @@ func (s *Server) handleSaveGroup(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDeleteGroup(w http.ResponseWriter, r *http.Request) {
-	id, err := idParam(r, "id")
+	id, err := idParam(r)
 	if err != nil {
 		s.fail(w, r, err)
 		return
@@ -241,7 +242,7 @@ func (s *Server) handleDeleteGroup(w http.ResponseWriter, r *http.Request) {
 // handleSetGroupMembers replaces a group's membership. Instances listed here
 // move into the group; former members not listed become ungrouped.
 func (s *Server) handleSetGroupMembers(w http.ResponseWriter, r *http.Request) {
-	id, err := idParam(r, "id")
+	id, err := idParam(r)
 	if err != nil {
 		s.fail(w, r, err)
 		return
@@ -294,7 +295,7 @@ func (s *Server) handleSaveHost(w http.ResponseWriter, r *http.Request) {
 	var id int64
 	if r.Method == http.MethodPut {
 		var err error
-		if id, err = idParam(r, "id"); err != nil {
+		if id, err = idParam(r); err != nil {
 			s.fail(w, r, err)
 			return
 		}
@@ -306,7 +307,7 @@ func (s *Server) handleSaveHost(w http.ResponseWriter, r *http.Request) {
 	}
 	out, err := s.Fleet.SaveHost(r.Context(), id, h)
 	if err != nil {
-		if err == fleet.ErrNotFound {
+		if errors.Is(err, fleet.ErrNotFound) {
 			s.fail(w, r, err)
 			return
 		}
@@ -318,7 +319,7 @@ func (s *Server) handleSaveHost(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDeleteHost(w http.ResponseWriter, r *http.Request) {
-	id, err := idParam(r, "id")
+	id, err := idParam(r)
 	if err != nil {
 		s.fail(w, r, err)
 		return
@@ -344,7 +345,7 @@ func (s *Server) handleSaveSite(w http.ResponseWriter, r *http.Request) {
 	var id int64
 	if r.Method == http.MethodPut {
 		var err error
-		if id, err = idParam(r, "id"); err != nil {
+		if id, err = idParam(r); err != nil {
 			s.fail(w, r, err)
 			return
 		}
@@ -366,7 +367,7 @@ func (s *Server) handleSaveSite(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDeleteSite(w http.ResponseWriter, r *http.Request) {
-	id, err := idParam(r, "id")
+	id, err := idParam(r)
 	if err != nil {
 		s.fail(w, r, err)
 		return

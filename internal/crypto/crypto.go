@@ -34,7 +34,7 @@ func LoadOrCreate(dataDir string) (*Box, error) {
 		return New(key)
 	}
 	path := filepath.Join(dataDir, keyFileName)
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // path is the configured data directory.
 	if errors.Is(err, os.ErrNotExist) {
 		key := make([]byte, 32)
 		if _, err := rand.Read(key); err != nil {

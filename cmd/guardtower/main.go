@@ -212,7 +212,11 @@ func healthcheck(args []string) error {
 		scheme = "https"
 	}
 	c := &http.Client{Timeout: 3 * time.Second}
-	resp, err := c.Get(scheme + "://" + net.JoinHostPort(host, port) + "/healthz")
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, scheme+"://"+net.JoinHostPort(host, port)+"/healthz", nil)
+	if err != nil {
+		return err
+	}
+	resp, err := c.Do(req)
 	if err != nil {
 		return err
 	}

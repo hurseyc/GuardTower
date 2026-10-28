@@ -69,8 +69,8 @@ func decode(r *http.Request, v any) error {
 	return nil
 }
 
-func idParam(r *http.Request, name string) (int64, error) {
-	id, err := strconv.ParseInt(chi.URLParam(r, name), 10, 64)
+func idParam(r *http.Request) (int64, error) {
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil || id <= 0 {
 		return 0, userError{status: http.StatusBadRequest, msg: "invalid id"}
 	}

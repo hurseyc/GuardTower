@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/hurseyc/GuardTower/security/advisories/new
+    about: Please report security issues privately.
+  - name: Questions & ideas
+    url: https://github.com/hurseyc/GuardTower/discussions
+    about: Ask questions and share setups in Discussions.

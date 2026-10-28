@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"crypto/subtle"
+	"errors"
 	"net"
 	"net/http"
 	"strings"
@@ -35,7 +36,7 @@ func securityHeaders(next http.Handler) http.Handler {
 		h.Set("X-Frame-Options", "DENY")
 		h.Set("Referrer-Policy", "same-origin")
 		h.Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
-		h.Set("Content-Security-Policy", "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'")
+		h.Set("Content-Security-Policy", "default-src 'self'; img-src 'self' data:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'")
 		next.ServeHTTP(w, r)
 	})
 }
@@ -131,18 +132,6 @@ func requireRole(role string) func(http.Handler) http.Handler {
 	}
 }
 
-// requireFamily restricts the Family DNS section to designated users.
-func requireFamily(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		u := userFrom(r.Context())
-		if u == nil || !u.FamilyAccess {
-			writeErr(w, http.StatusForbidden, "Family DNS access has not been granted to this account")
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
 func safeMethod(m string) bool {
 	return m == http.MethodGet || m == http.MethodHead || m == http.MethodOptions
 }
@@ -182,7 +171,7 @@ func recoverer(log interface {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			defer func() {
 				if v := recover(); v != nil {
-					if v == http.ErrAbortHandler {
+					if err, ok := v.(error); ok && errors.Is(err, http.ErrAbortHandler) {
 						panic(v)
 					}
 					log.Error("panic", "path", r.URL.Path, "value", v)

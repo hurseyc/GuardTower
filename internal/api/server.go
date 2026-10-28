@@ -37,10 +37,7 @@ type Server struct {
 	log    *slog.Logger
 	auth   *auth.Service
 	router chi.Router
-	routes []routeInfo
 }
-
-type routeInfo struct{ Method, Pattern string }
 
 // New builds the server and its routes.
 func New(d Deps) *Server {
