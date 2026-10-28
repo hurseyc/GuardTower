@@ -1,10 +1,18 @@
 import type { LucideIcon } from 'lucide-react'
 import {
+  ArrowUpCircle,
+  BarChart3,
   BookOpen,
   Boxes,
+  History,
   LayoutDashboard,
+  Heart,
+  Network,
+  Rocket,
   ScrollText,
+  SlidersHorizontal,
   Server,
+  Settings,
   ShieldCheck,
   Users,
 } from 'lucide-react'
@@ -29,9 +37,17 @@ export const navRoutes: NavRoute[] = [
   { path: '/', label: 'Overview', icon: LayoutDashboard, doc: 'operation/dashboard', section: 'Fleet' },
   { path: '/instances', label: 'Instances', icon: ShieldCheck, doc: 'setup/adding-instances', section: 'Fleet' },
   { path: '/groups', label: 'Groups', icon: Boxes, doc: 'operation/groups', section: 'Fleet' },
+  { path: '/topology', label: 'Topology', icon: Network, doc: 'operation/topology', section: 'Fleet' },
   { path: '/hosts', label: 'Hosts & sites', icon: Server, doc: 'operation/hosts', section: 'Fleet' },
+  { path: '/config', label: 'Configuration', icon: SlidersHorizontal, doc: 'operation/configuration', section: 'Change' },
+  { path: '/upgrades', label: 'Upgrades', icon: ArrowUpCircle, doc: 'operation/upgrades', section: 'Change' },
+  { path: '/changes', label: 'Review & apply', icon: Rocket, doc: 'operation/changes', section: 'Change' },
+  { path: '/analytics', label: 'Analytics', icon: BarChart3, doc: 'operation/analytics', section: 'Insights' },
+  { path: '/logs', label: 'Query log', icon: ScrollText, doc: 'operation/query-log', section: 'Insights' },
+  { path: '/family', label: 'Family DNS', icon: Heart, doc: 'operation/family', section: 'Family', family: true },
   { path: '/users', label: 'Users', icon: Users, doc: 'admin/users', section: 'Admin', minRole: 'admin' },
-  { path: '/audit', label: 'Audit log', icon: ScrollText, doc: 'admin/audit-log', section: 'Admin', minRole: 'admin' },
+  { path: '/audit', label: 'Audit log', icon: History, doc: 'admin/audit-log', section: 'Admin', minRole: 'admin' },
+  { path: '/settings', label: 'Settings', icon: Settings, doc: 'admin/settings', section: 'Admin', minRole: 'admin' },
   { path: '/docs', label: 'Documentation', icon: BookOpen, doc: 'index', section: 'Help' },
 ]
 

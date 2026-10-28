@@ -1,11 +1,15 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { Activity, Boxes, Plus, Server, ShieldCheck, ShieldOff } from 'lucide-react'
-import { api, type Overview } from '@/lib/api'
-import { useSession } from '@/lib/session'
-import { colorFor, timeAgo } from '@/lib/utils'
+import { api, type Overview, type StatsSummary } from '@/lib/api'
+import { TimeSeriesChart } from '@/components/charts'
+import { useSession } from '@/lib/sessionContext'
+import { colorFor, fmtCompact, fmtPct, timeAgo } from '@/lib/utils'
+import { FindingList } from '@/components/Resilience'
+import { useResilience } from '@/lib/resilience'
 import { PageHeader } from '@/components/AppShell'
 import { Badge, Button, Card, CardHeader, EmptyState, Skeleton, StatusDot, Tip } from '@/components/ui'
+import { GettingStarted } from '@/components/GettingStarted'
 
 export function StatCard({ label, value, sub, icon, tone = 'neutral' }: { label: string; value: React.ReactNode; sub?: React.ReactNode; icon?: React.ReactNode; tone?: 'neutral' | 'ok' | 'warn' | 'danger' }) {
   const toneCls = { neutral: 'text-fg', ok: 'text-ok', warn: 'text-warn', danger: 'text-danger' }[tone]
@@ -23,7 +27,15 @@ export function StatCard({ label, value, sub, icon, tone = 'neutral' }: { label:
 
 export function OverviewPage() {
   const { can } = useSession()
+  const { data: res } = useResilience()
   const { data, isLoading } = useQuery({ queryKey: ['overview'], queryFn: () => api.get<Overview>('/overview'), refetchInterval: 30_000 })
+  const { data: stats } = useQuery({
+    queryKey: ['stats', '24h', 'overview'],
+    queryFn: () => api.get<StatsSummary>('/stats/summary?range=24h&top=5'),
+    refetchInterval: 60_000,
+    enabled: !!data && data.instances.length > 0,
+  })
+  const instStats = new Map((stats?.instances ?? []).map((s) => [s.instance_id, s]))
 
   if (isLoading || !data) {
     return (
@@ -82,6 +94,7 @@ export function OverviewPage() {
     <>
       <PageHeader title="Overview" description="Live health of every AdGuard Home instance GuardTower manages." />
       <div className="space-y-6 p-6">
+        {can('admin') && <GettingStarted overview={data} />}
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard
             label="Instances online"
@@ -97,7 +110,24 @@ export function OverviewPage() {
             tone={unprotected.length ? 'warn' : 'ok'}
             icon={unprotected.length ? <ShieldOff className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}
           />
-          <StatCard label="Groups" value={data.summary.groups} sub={`${ungrouped.length} ungrouped instance${ungrouped.length === 1 ? '' : 's'}`} icon={<Boxes className="h-4 w-4" />} />
+          {res && res.groups.some((g) => g.members > 0) ? (
+            <StatCard
+              label="Redundancy"
+              value={`${res.summary.redundant}/${res.groups.filter((g) => g.members > 0).length} groups`}
+              sub={
+                res.summary.spof + res.summary.down + res.summary.at_risk > 0
+                  ? `At risk: ${res.groups
+                      .filter((g) => g.score === 'spof' || g.score === 'down' || g.score === 'at_risk')
+                      .map((g) => g.name)
+                      .join(', ')}`
+                  : 'Every group survives a host failure'
+              }
+              tone={res.summary.down > 0 ? 'danger' : res.summary.spof + res.summary.at_risk > 0 ? 'warn' : 'ok'}
+              icon={<Boxes className="h-4 w-4" />}
+            />
+          ) : (
+            <StatCard label="Groups" value={data.summary.groups} sub={`${ungrouped.length} ungrouped instance${ungrouped.length === 1 ? '' : 's'}`} icon={<Boxes className="h-4 w-4" />} />
+          )}
           <StatCard
             label="AdGuard Home versions"
             value={versions.size || '—'}
@@ -106,6 +136,47 @@ export function OverviewPage() {
             icon={<Server className="h-4 w-4" />}
           />
         </div>
+
+        {res && res.groups.some((g) => g.findings.some((f) => f.severity !== 'info')) && (
+          <Card>
+            <CardHeader
+              title="Single points of failure"
+              description="Groups whose DNS servers would fail together, or have no backup right now."
+              actions={
+                <Link to="/topology" className="text-sm text-accent hover:underline">
+                  View topology
+                </Link>
+              }
+            />
+            <div className="px-5 pb-5">
+              <FindingList findings={res.groups.flatMap((g) => g.findings.filter((f) => f.severity !== 'info'))} />
+            </div>
+          </Card>
+        )}
+
+        {stats && stats.totals.queries > 0 && (
+          <Card>
+            <CardHeader
+              title="Fleet traffic · last 24 hours"
+              description={`${fmtCompact(stats.totals.queries)} queries · ${fmtPct(stats.totals.blocked_pct)} blocked · ${stats.totals.avg_elapsed_ms.toFixed(1)} ms average`}
+              actions={
+                <Link to="/analytics" className="text-xs font-medium text-accent hover:underline">
+                  Open analytics →
+                </Link>
+              }
+            />
+            <div className="px-3 pb-3">
+              <TimeSeriesChart
+                height={180}
+                bucketMs={stats.bucket_ms}
+                series={[
+                  { name: 'All queries', colorIndex: 0, area: true, data: stats.series.map((p) => [p.t, p.queries] as [number, number]) },
+                  { name: 'Blocked', colorIndex: 1, data: stats.series.map((p) => [p.t, p.blocked] as [number, number]) },
+                ]}
+              />
+            </div>
+          </Card>
+        )}
 
         {sections.map((sec) => (
           <Card key={sec.key}>
@@ -136,6 +207,16 @@ export function OverviewPage() {
                       <span className="ml-auto font-mono text-xs text-faint">{i.status?.version || '—'}</span>
                     </div>
                     <div className="mt-1 truncate font-mono text-xs text-faint">{i.url}</div>
+                    {instStats.get(i.id) && (
+                      <div className="mt-2 flex gap-4 text-xs text-muted">
+                        <span>
+                          <strong className="tabular-nums text-fg">{fmtCompact(instStats.get(i.id)!.queries)}</strong> queries/24h
+                        </span>
+                        <span>
+                          <strong className="tabular-nums text-fg">{fmtPct((instStats.get(i.id)!.blocked * 100) / Math.max(1, instStats.get(i.id)!.queries))}</strong> blocked
+                        </span>
+                      </div>
+                    )}
                     <div className="mt-3 flex flex-wrap items-center gap-1.5">
                       {i.status?.online ? (
                         i.status.protection_enabled ? (

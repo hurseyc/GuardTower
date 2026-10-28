@@ -7,7 +7,7 @@ summary: Run GuardTower with Docker in about a minute.
 
 # Quick start
 
-The fastest way to try GuardTower is Docker. Other install methods are covered in [Installing with Docker](../setup/install-docker.md) and [Installing on Linux / Proxmox LXC](../setup/install-linux.md).
+The fastest way to try GuardTower is Docker. To look around without connecting your own servers first, start the [demo](demo.md) instead. Other install methods are covered in [Installing with Docker](../setup/install-docker.md) and [Installing on Linux / Proxmox LXC](../setup/install-linux.md).
 
 ## 1. Start the container
 

@@ -3,7 +3,6 @@ import * as React from 'react'
 import * as DialogPrimitive from '@radix-ui/react-dialog'
 import * as SwitchPrimitive from '@radix-ui/react-switch'
 import * as TooltipPrimitive from '@radix-ui/react-tooltip'
-import * as TabsPrimitive from '@radix-ui/react-tabs'
 import { Loader2, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -188,6 +187,7 @@ export function StatusDot({ online, className }: { online: boolean | undefined; 
   return (
     <span
       className={cn('inline-block h-2 w-2 shrink-0 rounded-full', online ? 'bg-ok gt-pulse' : 'bg-danger', className)}
+      role="img"
       aria-label={online ? 'online' : 'offline'}
     />
   )
@@ -218,10 +218,11 @@ export function EmptyState({
   )
 }
 
-export function Switch({ checked, onCheckedChange, disabled, id }: { checked: boolean; onCheckedChange: (v: boolean) => void; disabled?: boolean; id?: string }) {
+export function Switch({ checked, onCheckedChange, disabled, id, label }: { checked: boolean; onCheckedChange: (v: boolean) => void; disabled?: boolean; id?: string; label?: string }) {
   return (
     <SwitchPrimitive.Root
       id={id}
+      aria-label={label}
       checked={checked}
       onCheckedChange={onCheckedChange}
       disabled={disabled}
@@ -283,7 +284,9 @@ export function Dialog({
             <div>
               <DialogPrimitive.Title className="text-base font-semibold">{title}</DialogPrimitive.Title>
               {description ? (
-                <DialogPrimitive.Description className="mt-1 text-sm text-muted">{description}</DialogPrimitive.Description>
+                <DialogPrimitive.Description asChild>
+                  <div className="mt-1 text-sm text-muted">{description}</div>
+                </DialogPrimitive.Description>
               ) : (
                 <DialogPrimitive.Description className="sr-only">{title}</DialogPrimitive.Description>
               )}
@@ -330,22 +333,24 @@ export function Sheet({
   )
 }
 
-export const Tabs = TabsPrimitive.Root
-export function TabsList({ className, ...props }: TabsPrimitive.TabsListProps) {
-  return <TabsPrimitive.List className={cn('inline-flex items-center gap-1 rounded-lg border border-border bg-subtle p-1', className)} {...props} />
-}
-export function TabsTrigger({ className, ...props }: TabsPrimitive.TabsTriggerProps) {
+/** A row of mutually exclusive options (a view switch, a time range): toggle buttons, not tabs, because nothing is a tab panel. */
+export function Segmented<T extends string>({ label, value, options, onChange }: { label: string; value: T; options: { value: T; label: React.ReactNode }[]; onChange: (v: T) => void }) {
   return (
-    <TabsPrimitive.Trigger
-      className={cn(
-        'rounded-md px-3 py-1 text-xs font-medium text-muted transition-colors hover:text-fg data-[state=active]:bg-elevated data-[state=active]:text-fg data-[state=active]:shadow-card',
-        className,
-      )}
-      {...props}
-    />
+    <div role="group" aria-label={label} className="inline-flex items-center gap-1 rounded-lg border border-border bg-subtle p-1">
+      {options.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          aria-pressed={o.value === value}
+          onClick={() => onChange(o.value)}
+          className="rounded-md px-3 py-1 text-xs font-medium text-muted transition-colors hover:text-fg aria-pressed:bg-elevated aria-pressed:text-fg aria-pressed:shadow-card"
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
   )
 }
-export const TabsContent = TabsPrimitive.Content
 
 export function Kbd({ children }: { children: React.ReactNode }) {
   return <kbd className="rounded border border-border bg-subtle px-1.5 py-0.5 font-mono text-[10px] text-muted">{children}</kbd>
@@ -353,7 +358,8 @@ export function Kbd({ children }: { children: React.ReactNode }) {
 
 export function Table({ className, ...props }: React.TableHTMLAttributes<HTMLTableElement>) {
   return (
-    <div className="overflow-x-auto">
+    // Focusable so a table that scrolls sideways (on a phone) can be scrolled with the keyboard.
+    <div className="relative overflow-x-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring" tabIndex={0}>
       <table className={cn('w-full text-sm', className)} {...props} />
     </div>
   )
