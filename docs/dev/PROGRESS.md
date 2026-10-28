@@ -11,8 +11,8 @@ This file is the single source of truth for resuming work. It is kept current at
 | M2 | Query-log collector & warehouse, search, live tail, fleet/group charts | ✅ done |
 | M3 | Config engine: baseline import, base/group/instance layers, effective config, drift | ✅ done |
 | M4 | Plan/Apply, snapshots, canary, auto-rollback, history/restore | ✅ done |
-| M5 | AGH upgrades: release tracking, builtin/docker/ssh drivers, rolling upgrades | ⏳ next |
-| M6 | SPOF scoring + warnings, Proxmox mapping, topology map, visual analytics | ⬜ |
+| M5 | AGH upgrades: release tracking, builtin/docker/ssh drivers, rolling upgrades | ✅ done |
+| M6 | SPOF scoring + warnings, Proxmox mapping, topology map, visual analytics | ⏳ next |
 | M7 | Family DNS: people/devices, categories, adult dashboard, alerts, Family profile | ⬜ |
 | M8 | Installers (install.sh, Proxmox helper), self-update, OIDC, notifications, metrics, YAML export, demo mode | ⬜ |
 | M9 | Polish, accessibility pass, screenshots, v1.0.0 | ⬜ |
@@ -59,11 +59,20 @@ cd web && PW_CHROMIUM_PATH=/opt/pw-browsers/chromium npx playwright test   # san
 - Integration test `TestRolloutCanaryRollbackAndRestore` (bad upstream on the canary → rolled back, rest skipped).
 - UI: `/changes` (Review & apply: plan, confirm, live step timeline, history), Snapshots card + drift warning on the instance page, observe toggle in Settings. Docs: `docs/operation/changes.md`.
 
-## Next steps (M5: AdGuard Home upgrades)
+## M5 notes
 
-1. Release tracking: poll GitHub releases for AdGuardHome (cache, ETag), store in `releases`; show "update available" per instance.
-2. Upgrade drivers (`internal/upgrade`): `builtin` (`/control/version.json` + `/control/update`, poll until the new version answers), `docker` (socket-proxy endpoint: inspect → pull → rename old → create identical → start; rollback = stop new, start old), `ssh` (key auth, pinned host key; backup binary + yaml, run upgrade, restore on failure).
-3. Per-instance driver config (auto-detect + override) in the instance dialog; secrets encrypted.
-4. Rolling upgrades reusing the rollout engine: one instance at a time, canary first, health gates (version reported, DNS resolves), never take down the last healthy member of a group; pause on first failure.
-5. Version policy per group (notify / manual / auto in maintenance window) and pinning.
-6. UI: Upgrades page + docs (`operation/upgrades.md`, `setup/docker-socket-proxy.md`, `setup/ssh-upgrades.md`). Integration test: builtin updater against a local fake release server; docker driver against a fake Docker API.
+- `internal/upgrade`: versions + maintenance windows (`version.go`), GitHub release tracker with ETag and `releases/latest` redirect fallback (`releases.go`), drivers (`driver.go` built-in updater, `docker.go` recreate-from-new-image with config backup via the archive API and full undo, `ssh.go` pinned host key + backup/swap/rollback scripts), service (`service.go`: per-instance config with encrypted SSH key, status checks, plan, rolling upgrade step with last-healthy-member guard and health gate, group policies, scheduler).
+- Upgrades run through the rollout engine's generic job API (`rollout.StartJob`), so they share the single-rollout lock, history and live timeline (`kind = 'upgrade'`).
+- `internal/upgrade/dockerfake`: fake Docker Engine API with pluggable runtime. `gtdev docker -instance 5` serves it in front of a dev-fleet instance (tag `v9.9.9-broken` fails to start, to try rollback).
+- Integration test `TestDockerUpgradeAndRollback`: real AGH v0.107.70 → v0.107.79 through the Docker API, and a broken image rolled back to the old container.
+- UI: `/upgrades` (latest release, instance versions/methods, plan + start, policies, recent upgrades), Upgrades card on the instance page (method, pin, Docker/SSH settings, connection tests, host-key trust). Docs: `operation/upgrades.md`, `setup/upgrade-methods.md`, `deploy/socket-proxy.compose.yml`.
+- Note: migration 0004's `rollouts.kind` CHECK now includes `upgrade` (changed before any release, so no data migration).
+
+## Next steps (M6: single points of failure, topology, visual analytics)
+
+1. SPOF engine (`internal/resilience`): per group, compute failure domains of members (site → power/UPS → host → runtime) and score redundancy; findings: all members on one host / one site / one UPS, single-member group, host down leaving no redundancy. Expose `/resilience` and include warnings in plans (Review & apply, Upgrades) when a change or move creates a SPOF.
+2. Hosts: optional power domain field; Proxmox read-only API token per site/host to map LXC/VM → node automatically (`/api2/json/cluster/resources`), with a sync button.
+3. Badges: subtle SPOF markers on group cards, instance rows and Overview.
+4. Topology map (`/topology`, React Flow): physical layout (sites → hosts → instances) and logical layout (groups → instances), drill-down on click, node colour = health, edge width = QPS, red dashed outline on shared-host SPOFs.
+5. Visual analytics: traffic share treemap, blocked % leaderboard, Sankey clients → instances → outcome, group-vs-group comparison; validate the palette with the dataviz validator.
+6. Docs: `operation/resilience.md`, `operation/topology.md`; e2e + unit tests.

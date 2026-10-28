@@ -9,6 +9,7 @@ import (
 	"github.com/hurseyc/guardtower/internal/collector"
 	"github.com/hurseyc/guardtower/internal/querylog"
 	"github.com/hurseyc/guardtower/internal/rollout"
+	"github.com/hurseyc/guardtower/internal/upgrade"
 )
 
 // filterFromRequest builds a query-log filter from URL parameters:
@@ -167,6 +168,7 @@ var settingDefs = map[string]struct {
 	collector.SettingRetentionDays:       {def: strconv.Itoa(collector.DefaultRetentionDays), min: 1, max: 3650},
 	collector.SettingRollupRetentionDays: {def: strconv.Itoa(collector.DefaultRollupRetentionDays), min: 7, max: 3650},
 	rollout.SettingObserve:               {def: "true", isBool: true},
+	upgrade.SettingCheckReleases:         {def: "true", isBool: true},
 }
 
 // SettingKeys returns the editable setting keys (used by the docs test).

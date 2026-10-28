@@ -49,6 +49,7 @@ export function useServerEvents(enabled: boolean) {
             statusTimer = setTimeout(() => {
               void qc.invalidateQueries({ queryKey: ['overview'] })
               void qc.invalidateQueries({ queryKey: ['instances'] })
+              void qc.invalidateQueries({ queryKey: ['upgrades'] })
             }, 300)
           }
           if (t === 'instance.availability' && data && typeof data === 'object') {

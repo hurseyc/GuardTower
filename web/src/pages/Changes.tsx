@@ -1,14 +1,15 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { AlertTriangle, CheckCircle2, CircleDashed, Eye, Loader2, Rocket, RotateCcw, ShieldCheck, SkipForward, XCircle } from 'lucide-react'
-import { api, type ConfigSection, type Overview, type Plan, type Rollout, type RolloutStep, type RolloutTarget } from '@/lib/api'
+import { AlertTriangle, ArrowUpCircle, CheckCircle2, CircleDashed, Eye, Loader2, Rocket, RotateCcw, ShieldCheck, SkipForward, XCircle } from 'lucide-react'
+import { api, type ConfigSection, type Overview, type Plan, type Rollout, type RolloutStep } from '@/lib/api'
 import { describe } from '@/lib/configMerge'
 import { onServerEvent } from '@/lib/events'
 import { useSession } from '@/lib/session'
 import { cn, fmtDateTime, timeAgo } from '@/lib/utils'
 import { PageHeader } from '@/components/AppShell'
+import { TargetSelect, parseTarget, targetParam } from '@/components/TargetSelect'
 import { Badge, Button, Card, CardHeader, ConfirmDialog, EmptyState, Select, Skeleton, Table, Td, Th } from '@/components/ui'
 
 const rolloutTone = { running: 'info', succeeded: 'ok', failed: 'danger', rolled_back: 'warn', cancelled: 'neutral' } as const
@@ -18,20 +19,8 @@ export function RolloutBadge({ status }: { status: Rollout['status'] }) {
   return <Badge tone={rolloutTone[status]}>{rolloutLabel[status]}</Badge>
 }
 
-function parseTarget(v: string | null): RolloutTarget {
-  if (!v || v === 'fleet') return { kind: 'fleet' }
-  const [k, rest] = v.split(':')
-  if (k === 'tag') return { kind: 'tag', tag: rest }
-  return { kind: k as RolloutTarget['kind'], id: Number(rest) }
-}
-function targetParam(t: RolloutTarget): string {
-  if (t.kind === 'fleet') return 'fleet'
-  if (t.kind === 'tag') return `tag:${t.tag}`
-  return `${t.kind}:${t.id}`
-}
-
 /** Live-refresh rollout queries on server events. */
-function useRolloutEvents() {
+export function useRolloutEvents() {
   const qc = useQueryClient()
   useEffect(
     () =>
@@ -41,6 +30,7 @@ function useRolloutEvents() {
         void qc.invalidateQueries({ queryKey: ['rollout'] })
         void qc.invalidateQueries({ queryKey: ['sync'] })
         void qc.invalidateQueries({ queryKey: ['instance-config'] })
+        void qc.invalidateQueries({ queryKey: ['upgrades'] })
       }),
     [qc],
   )
@@ -65,7 +55,6 @@ export function ChangesPage() {
     queryFn: () => api.get<{ rollouts: Rollout[]; active_id: number; observe: boolean }>('/rollouts'),
     refetchInterval: 15_000,
   })
-  const tags = useMemo(() => [...new Set((overview?.instances ?? []).flatMap((i) => i.tags))].sort(), [overview])
 
   const setParam = (k: string, v: string) => {
     const n = new URLSearchParams(params)
@@ -136,34 +125,7 @@ export function ChangesPage() {
           <div className="flex flex-wrap items-end gap-3 px-5 pb-5">
             <label className="space-y-1.5">
               <span className="text-xs font-medium text-muted">Instances</span>
-              <Select value={targetParam(target)} onChange={(e) => setParam('target', e.target.value)} className="w-64">
-                <option value="fleet">Whole fleet</option>
-                {overview?.groups.length ? (
-                  <optgroup label="Groups">
-                    {overview.groups.map((g) => (
-                      <option key={g.id} value={`group:${g.id}`}>
-                        {g.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                ) : null}
-                {tags.length ? (
-                  <optgroup label="Tags">
-                    {tags.map((t) => (
-                      <option key={t} value={`tag:${t}`}>
-                        #{t}
-                      </option>
-                    ))}
-                  </optgroup>
-                ) : null}
-                <optgroup label="Single instance">
-                  {overview?.instances.map((i) => (
-                    <option key={i.id} value={`instance:${i.id}`}>
-                      {i.name}
-                    </option>
-                  ))}
-                </optgroup>
-              </Select>
+              <TargetSelect value={target} onChange={(t) => setParam('target', targetParam(t))} overview={overview} />
             </label>
             <label className="space-y-1.5">
               <span className="text-xs font-medium text-muted">Settings</span>
@@ -237,7 +199,7 @@ export function ChangesPage() {
         )}
 
         <Card>
-          <CardHeader title="Rollout history" description="Every apply and restore, with what happened on each instance." />
+          <CardHeader title="Rollout history" description="Every apply, restore and upgrade, with what happened on each instance." />
           {!list ? (
             <Skeleton className="mx-5 mb-5 h-24" />
           ) : list.rollouts.length === 0 ? (
@@ -260,6 +222,7 @@ export function ChangesPage() {
                     <Td className="font-mono text-xs text-faint">#{r.id}</Td>
                     <Td className="text-sm">
                       {r.kind === 'restore' && <RotateCcw className="mr-1 inline h-3.5 w-3.5 text-muted" />}
+                      {r.kind === 'upgrade' && <ArrowUpCircle className="mr-1 inline h-3.5 w-3.5 text-muted" />}
                       {r.target}
                     </Td>
                     <Td>
@@ -368,7 +331,13 @@ export function RolloutDetail({ id, onClose }: { id: number; onClose?: () => voi
                 </Link>
                 {s.canary && <Badge tone="info">canary</Badge>}
                 <span className="text-xs text-muted">{stepLabel[s.status]}</span>
-                {s.changes.length > 0 && <span className="text-xs text-faint">· {s.changes.length} change{s.changes.length === 1 ? '' : 's'}</span>}
+                {r.kind === 'upgrade' && s.changes[0] ? (
+                  <span className="font-mono text-xs text-faint">
+                    · {String(s.changes[0].from ?? '?')} → {String(s.changes[0].to ?? '?')}
+                  </span>
+                ) : (
+                  s.changes.length > 0 && <span className="text-xs text-faint">· {s.changes.length} change{s.changes.length === 1 ? '' : 's'}</span>
+                )}
                 {s.snapshot_id ? <span className="text-xs text-faint">· snapshot #{s.snapshot_id}</span> : null}
               </div>
               {s.detail && <p className={cn('mt-0.5 text-xs', s.status === 'failed' || s.status === 'rolled_back' ? 'text-warn' : 'text-muted')}>{s.detail}</p>}

@@ -19,6 +19,7 @@ import (
 	"github.com/hurseyc/guardtower/internal/querylog"
 	"github.com/hurseyc/guardtower/internal/rollout"
 	"github.com/hurseyc/guardtower/internal/store"
+	"github.com/hurseyc/guardtower/internal/upgrade"
 )
 
 // Config configures the application.
@@ -47,6 +48,7 @@ type App struct {
 	Collector *collector.Collector
 	Config    *config.Service
 	Rollout   *rollout.Service
+	Upgrade   *upgrade.Service
 	Bus       *events.Bus
 	server    *api.Server
 }
@@ -90,8 +92,10 @@ func NewWith(cfg Config, st *store.Store, box *crypto.Box) *App {
 		Config:    cs,
 		Rollout:   rollout.New(st, fl, cs, bus, cfg.Log),
 	}
+	a.Upgrade = upgrade.New(st, fl, box, a.Rollout, bus, cfg.Log)
+	a.Upgrade.OnChanged = a.Poller.Kick
 	a.server = api.New(api.Deps{
-		Log: cfg.Log, Store: st, Auth: a.Auth, Fleet: fl, Poller: a.Poller, QueryLog: ql, Config: cs, Rollout: a.Rollout, Bus: bus,
+		Log: cfg.Log, Store: st, Auth: a.Auth, Fleet: fl, Poller: a.Poller, QueryLog: ql, Config: cs, Rollout: a.Rollout, Upgrade: a.Upgrade, Bus: bus,
 		WebFS: cfg.WebFS, DocsFS: cfg.DocsFS, Proxies: cfg.TrustedProxy,
 		Features: map[string]bool{},
 	})
@@ -104,6 +108,7 @@ func (a *App) Start(ctx context.Context) {
 	go a.Poller.Run(ctx)
 	go a.Collector.Run(ctx)
 	go a.Config.RunChecks(ctx, 2*time.Minute)
+	go a.Upgrade.Run(ctx)
 	go func() {
 		t := time.NewTicker(time.Hour)
 		defer t.Stop()

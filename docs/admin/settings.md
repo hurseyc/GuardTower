@@ -2,7 +2,7 @@
 title: Settings
 section: Admin
 order: 25
-summary: Observe mode, data retention and collection health.
+summary: Observe mode, upgrade checks, data retention and collection health.
 routes: [/settings]
 ---
 
@@ -17,6 +17,12 @@ Admins can change GuardTower's runtime settings under **Admin → Settings**. Ev
 | Observe mode | `mode.observe` | on | While on, GuardTower is read-only towards your instances: it collects logs and compares settings, but refuses to apply changes or restore snapshots. Turn it off to use [Review & apply](../operation/changes.md). |
 
 New installs start in observe mode so you can check what GuardTower sees before it changes anything.
+
+## Upgrades
+
+| Setting | Key | Default | What it controls |
+|---|---|---|---|
+| Check for AdGuard Home releases | `upgrades.check_releases` | on | Every 6 hours, GuardTower asks GitHub (`api.github.com`) for the list of AdGuard Home releases, so the [Upgrades](../operation/upgrades.md) page knows the latest version. Turn it off for air-gapped installs; instances whose built-in updater offers a version can still be upgraded. |
 
 ## Data retention
 

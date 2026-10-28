@@ -88,7 +88,8 @@ func (s *Service) Observing(ctx context.Context) bool {
 	return err != nil || v != "false"
 }
 
-func (s *Service) resolve(ctx context.Context, t Target) ([]*fleet.Instance, string, error) {
+// Resolve lists the enabled instances a target covers, canaries first, and describes it.
+func (s *Service) Resolve(ctx context.Context, t Target) ([]*fleet.Instance, string, error) {
 	all, err := s.fleet.ListInstances(ctx)
 	if err != nil {
 		return nil, "", err
@@ -148,7 +149,7 @@ func (s *Service) resolve(ctx context.Context, t Target) ([]*fleet.Instance, str
 
 // MakePlan computes what applying would change, without changing anything.
 func (s *Service) MakePlan(ctx context.Context, t Target, sections []string) (*Plan, error) {
-	insts, desc, err := s.resolve(ctx, t)
+	insts, desc, err := s.Resolve(ctx, t)
 	if err != nil {
 		return nil, err
 	}
@@ -258,6 +259,21 @@ func (s *Service) release() {
 }
 
 func (s *Service) create(ctx context.Context, kind, target string, sections []string, by string, items []PlanItem) (int64, error) {
+	rows := make([]JobItem, 0, len(items))
+	for _, it := range items {
+		if len(it.Changes) == 0 && kind == "apply" {
+			continue
+		}
+		ji := JobItem{InstanceID: it.InstanceID, Canary: it.Canary, Changes: it.Changes}
+		if !it.Online {
+			ji.Skip = "instance offline"
+		}
+		rows = append(rows, ji)
+	}
+	return s.createRows(ctx, kind, target, sections, by, rows)
+}
+
+func (s *Service) createRows(ctx context.Context, kind, target string, sections []string, by string, items []JobItem) (int64, error) {
 	tx, err := s.st.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, err
@@ -270,26 +286,98 @@ func (s *Service) create(ctx context.Context, kind, target string, sections []st
 		return 0, err
 	}
 	id, _ := res.LastInsertId()
-	ord := 0
-	for _, it := range items {
-		if len(it.Changes) == 0 && kind == "apply" {
-			continue
-		}
+	for ord, it := range items {
 		status, detail := "pending", ""
-		if !it.Online {
-			status, detail = "skipped", "instance offline"
+		if it.Skip != "" {
+			status, detail = "skipped", it.Skip
 		}
-		ch, _ := json.Marshal(it.Changes)
+		changes := it.Changes
+		if changes == nil {
+			changes = []config.Change{}
+		}
+		ch, _ := json.Marshal(changes)
 		if _, err := tx.ExecContext(ctx, `INSERT INTO rollout_steps (rollout_id, instance_id, ordinal, is_canary, status, changes, detail) VALUES (?, ?, ?, ?, ?, ?, ?)`,
 			id, it.InstanceID, ord, it.Canary, status, string(ch), detail); err != nil {
 			return 0, err
 		}
-		ord++
 	}
 	s.mu.Lock()
 	s.active = id
 	s.mu.Unlock()
 	return id, tx.Commit()
+}
+
+// ---- generic jobs (used by AdGuard Home upgrades) ----
+
+// JobItem is one instance in a job. A non-empty Skip records the step as
+// skipped with that reason.
+type JobItem struct {
+	InstanceID int64
+	Canary     bool
+	Changes    []config.Change
+	Skip       string
+}
+
+// ErrRolledBack marks a step error after which the instance was put back the
+// way it was; the job is then recorded as rolled back rather than failed.
+var ErrRolledBack = errors.New("rolled back")
+
+// StepFunc runs one step. It reports progress with update (status is one of
+// running|applying|verifying|succeeded|failed|rolled_back|skipped) and must
+// leave the step in a final state. A non-nil error stops the job and skips
+// the remaining steps.
+type StepFunc func(ctx context.Context, st Step, update func(status, detail string)) error
+
+// StartJob runs fn for every item serially in the background, sharing the
+// single-rollout lock, history and live updates with settings rollouts.
+func (s *Service) StartJob(ctx context.Context, kind, target, by string, items []JobItem, fn StepFunc) (int64, error) {
+	if s.Observing(ctx) {
+		return 0, ErrObserveMode
+	}
+	if !s.claim() {
+		return 0, ErrBusy
+	}
+	id, err := s.createRows(ctx, kind, target, nil, by, items)
+	if err != nil {
+		s.release()
+		return 0, err
+	}
+	go s.runJob(id, fn) //nolint:gosec // outlives the request on purpose; runJob uses the service root context
+	return id, nil
+}
+
+func (s *Service) runJob(id int64, fn StepFunc) {
+	defer s.release()
+	ctx := s.root
+	steps, err := s.steps(ctx, id)
+	if err != nil {
+		s.finish(ctx, id, "failed", err.Error())
+		return
+	}
+	for i, st := range steps {
+		if st.Status != "pending" {
+			continue
+		}
+		if ctx.Err() != nil {
+			s.finish(context.Background(), id, "cancelled", "GuardTower is shutting down")
+			return
+		}
+		update := func(status, detail string) { s.setStep(ctx, st.ID, status, detail) }
+		if err := fn(ctx, st, update); err != nil {
+			for _, rest := range steps[i+1:] {
+				if rest.Status == "pending" {
+					s.setStep(ctx, rest.ID, "skipped", "stopped after "+st.InstanceName+" failed")
+				}
+			}
+			status := "failed"
+			if errors.Is(err, ErrRolledBack) {
+				status = "rolled_back"
+			}
+			s.finish(ctx, id, status, fmt.Sprintf("%s: %v", st.InstanceName, err))
+			return
+		}
+	}
+	s.finish(ctx, id, "succeeded", "")
 }
 
 func nonNil(s []string) []string {
