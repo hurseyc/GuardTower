@@ -11,9 +11,11 @@ import (
 
 	"github.com/hurseyc/guardtower/internal/api"
 	"github.com/hurseyc/guardtower/internal/auth"
+	"github.com/hurseyc/guardtower/internal/collector"
 	"github.com/hurseyc/guardtower/internal/crypto"
 	"github.com/hurseyc/guardtower/internal/events"
 	"github.com/hurseyc/guardtower/internal/fleet"
+	"github.com/hurseyc/guardtower/internal/querylog"
 	"github.com/hurseyc/guardtower/internal/store"
 )
 
@@ -27,18 +29,22 @@ type Config struct {
 	DocsFS        fs.FS
 	// StatusInterval overrides the status poll interval (tests).
 	StatusInterval time.Duration
+	// CollectInterval overrides the query-log poll interval (tests).
+	CollectInterval time.Duration
 }
 
 // App holds the running services.
 type App struct {
-	cfg    Config
-	Store  *store.Store
-	Box    *crypto.Box
-	Auth   *auth.Service
-	Fleet  *fleet.Service
-	Poller *fleet.Poller
-	Bus    *events.Bus
-	server *api.Server
+	cfg       Config
+	Store     *store.Store
+	Box       *crypto.Box
+	Auth      *auth.Service
+	Fleet     *fleet.Service
+	Poller    *fleet.Poller
+	QueryLog  *querylog.Store
+	Collector *collector.Collector
+	Bus       *events.Bus
+	server    *api.Server
 }
 
 // New opens storage and constructs every service.
@@ -60,19 +66,25 @@ func NewWith(cfg Config, st *store.Store, box *crypto.Box) *App {
 	if cfg.StatusInterval == 0 {
 		cfg.StatusInterval = 15 * time.Second
 	}
+	if cfg.CollectInterval == 0 {
+		cfg.CollectInterval = 10 * time.Second
+	}
 	bus := events.NewBus()
 	fl := fleet.NewService(st, box)
+	ql := querylog.New(st)
 	a := &App{
-		cfg:    cfg,
-		Store:  st,
-		Box:    box,
-		Auth:   auth.NewService(st, cfg.SecureCookies),
-		Fleet:  fl,
-		Poller: fleet.NewPoller(fl, bus, cfg.Log, cfg.StatusInterval),
-		Bus:    bus,
+		cfg:       cfg,
+		Store:     st,
+		Box:       box,
+		Auth:      auth.NewService(st, cfg.SecureCookies),
+		Fleet:     fl,
+		Poller:    fleet.NewPoller(fl, bus, cfg.Log, cfg.StatusInterval),
+		Bus:       bus,
+		QueryLog:  ql,
+		Collector: collector.New(fl, ql, st, bus, cfg.Log, cfg.CollectInterval),
 	}
 	a.server = api.New(api.Deps{
-		Log: cfg.Log, Store: st, Auth: a.Auth, Fleet: fl, Poller: a.Poller, Bus: bus,
+		Log: cfg.Log, Store: st, Auth: a.Auth, Fleet: fl, Poller: a.Poller, QueryLog: ql, Bus: bus,
 		WebFS: cfg.WebFS, DocsFS: cfg.DocsFS, Proxies: cfg.TrustedProxy,
 		Features: map[string]bool{},
 	})
@@ -82,6 +94,7 @@ func NewWith(cfg Config, st *store.Store, box *crypto.Box) *App {
 // Start launches background workers.
 func (a *App) Start(ctx context.Context) {
 	go a.Poller.Run(ctx)
+	go a.Collector.Run(ctx)
 	go func() {
 		t := time.NewTicker(time.Hour)
 		defer t.Stop()

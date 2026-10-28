@@ -15,6 +15,7 @@ linters:
         - (io.Closer).Close
         - (*database/sql.Rows).Close
         - (*database/sql.Tx).Rollback
+        - (*database/sql.Stmt).Close
         - (*database/sql.DB).Close
         - (*os.File).Close
         - (io/fs.File).Close
@@ -33,6 +34,11 @@ linters:
     rules:
       - path: _test\.go
         linters: [gosec, noctx, bodyclose, unparam]
+      # Query builders concatenate only fixed SQL fragments and "?" placeholders;
+      # every user-supplied value is passed as a bound argument.
+      - path: internal/querylog/
+        linters: [gosec]
+        text: G202
       - path: (cmd/gtdev|internal/devfleet)/
         linters: [gosec, noctx]
 formatters:
