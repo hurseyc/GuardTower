@@ -150,7 +150,7 @@ function UserDialog({ open, user, onOpenChange }: { open: boolean; user?: User; 
           <Input value={username} disabled={!!user} onChange={(e) => setUsername(e.target.value)} autoComplete="off" />
         </Field>
         {!user?.oidc && (
-          <Field label={user ? 'New password' : 'Password'} hint={user ? 'Leave blank to keep the current password. Changing it signs the user out.' : 'At least 10 characters'}>
+          <Field label={user ? 'New password' : 'Password'} hint={user ? 'Leave blank to keep the current password. Changing it signs the user out.' : 'At least 8 characters'}>
             <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
           </Field>
         )}

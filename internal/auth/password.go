@@ -22,7 +22,7 @@ const (
 )
 
 // MinPasswordLength is enforced on every password set through the API.
-const MinPasswordLength = 10
+const MinPasswordLength = 8
 
 // HashPassword returns a PHC-formatted argon2id hash.
 func HashPassword(password string) (string, error) {

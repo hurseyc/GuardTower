@@ -22,7 +22,7 @@ routes: [/users, /login]
 
 Admins manage accounts under **Admin → Users**:
 
-- **Add user**: choose a username, an initial password (at least 10 characters), a role and Family DNS access.
+- **Add user**: choose a username, an initial password (at least 8 characters), a role and Family DNS access.
 - **Edit**: change the role, Family DNS access or set a new password. Setting a password signs that user out everywhere.
 - Accounts marked **SSO** sign in through your identity provider and get their role from its groups at every sign-in. See [Single sign-on](sso.md).
 - **Delete**: the user is signed out immediately. Their entries in the audit log are kept.

@@ -23,6 +23,10 @@ func TestYAMLAndSelfUpdateAPI(t *testing.T) {
 	if code := c.do("GET", "/api/v1/updates/guardtower", nil, &upd); code != 200 || upd.Current == "" || upd.Method == "" || upd.UpdateAvailable {
 		t.Fatalf("self-update status: %d %+v", code, upd)
 	}
+	var e struct{ Error string }
+	if code := c.do("POST", "/api/v1/updates/guardtower/install", map[string]any{}, &e); code != 409 || !strings.Contains(e.Error, "can't update itself") {
+		t.Fatalf("install without the helper: %d %q", code, e.Error)
+	}
 
 	raw := func(path, body string) (int, string) {
 		req, _ := http.NewRequest("POST", c.base+path, strings.NewReader(body))

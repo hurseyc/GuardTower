@@ -2,9 +2,14 @@ package selfupdate
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestNewer(t *testing.T) {
@@ -45,5 +50,57 @@ func TestCheckAPIAndFallback(t *testing.T) {
 	_ = off.Check(context.Background())
 	if off.Status().CheckedAt != 0 {
 		t.Fatal("checks ran while disabled")
+	}
+}
+
+func TestSelfUpdateHelper(t *testing.T) {
+	dir := t.TempDir()
+	unit := filepath.Join(dir, "guardtower-update.path")
+	c := New(nil)
+	c.UpdateDir = filepath.Join(dir, "update")
+	c.HelperUnit = unit
+	c.st.Method = MethodDocker
+	if err := c.RequestUpdate(); !errors.Is(err, ErrNoSelfUpdate) {
+		t.Fatalf("docker install could request an update: %v", err)
+	}
+	c.st.Method = MethodSystemd
+	if c.Status().CanSelfUpdate {
+		t.Fatal("no helper installed yet")
+	}
+	if err := os.WriteFile(unit, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(c.UpdateDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if st := c.Status(); !st.CanSelfUpdate || st.Updating || st.Last != nil {
+		t.Fatalf("fresh helper: %+v", st)
+	}
+	if err := c.RequestUpdate(); err != nil {
+		t.Fatal(err)
+	}
+	if !c.Status().Updating {
+		t.Fatal("not updating after a request")
+	}
+	// What the helper does: take the request, run, report.
+	_ = os.Remove(filepath.Join(c.UpdateDir, "request"))
+	_ = os.WriteFile(filepath.Join(c.UpdateDir, "started"), []byte("1"), 0o644)
+	if !c.Status().Updating {
+		t.Fatal("not updating while the helper runs")
+	}
+	later := time.Now().Add(time.Second)
+	_ = os.WriteFile(filepath.Join(c.UpdateDir, "last.log"), []byte("\x1b[1;32m==>\x1b[0m GuardTower upgraded.\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(c.UpdateDir, "last.exit"), []byte("0\n"), 0o644)
+	_ = os.Chtimes(filepath.Join(c.UpdateDir, "last.exit"), later, later)
+	st := c.Status()
+	if st.Updating || st.Last == nil || st.Last.ExitCode != 0 || st.Last.Log != "==> GuardTower upgraded.\n" {
+		t.Fatalf("after the helper: %+v %+v", st, st.Last)
+	}
+	// A request nobody picks up is reported, not shown as "updating" forever.
+	_ = os.WriteFile(filepath.Join(c.UpdateDir, "request"), nil, 0o600)
+	old := time.Now().Add(-5 * time.Minute)
+	_ = os.Chtimes(filepath.Join(c.UpdateDir, "request"), old, old)
+	if st := c.Status(); st.Updating || !strings.Contains(st.Error, "didn't start") {
+		t.Fatalf("stuck request: %+v", st)
 	}
 }

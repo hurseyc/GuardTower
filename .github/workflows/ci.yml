@@ -123,7 +123,7 @@ jobs:
         run: |
           CGO_ENABLED=0 go build -trimpath -o stage/guardtower ./cmd/guardtower
           mkdir -p stage/install rel/latest/download
-          cp LICENSE README.md stage/ && cp install/guardtower.service stage/install/
+          cp LICENSE README.md stage/ && cp install/guardtower.service install/guardtower-update.path install/guardtower-update.service install/install.sh stage/install/
           tar -czf rel/latest/download/guardtower_linux_amd64.tar.gz -C stage guardtower LICENSE README.md install
           (cd rel/latest/download && sha256sum guardtower_linux_amd64.tar.gz > checksums.txt)
           (cd rel && python3 -m http.server 18999 --bind 127.0.0.1 &)
@@ -144,6 +144,29 @@ jobs:
             '
             echo "::endgroup::"
           done
+      - name: In-app update helper (systemd simulated with a systemctl shim)
+        run: |
+          docker run --rm --network host -v "$PWD/install:/src:ro" debian:12 bash -euc '
+            apt-get update -qq && apt-get install -y -qq curl ca-certificates >/dev/null
+            export GT_INSTALL_BASE_URL=http://127.0.0.1:18999
+            mkdir -p /run/systemd/system
+            printf "#!/bin/sh\necho systemctl \"\$@\" >> /tmp/systemctl.log\n" > /usr/local/sbin/systemctl && chmod +x /usr/local/sbin/systemctl
+            bash /src/install.sh
+            test -x /usr/local/lib/guardtower/self-update -a -x /usr/local/lib/guardtower/install.sh
+            grep -q "PathExists=/var/lib/guardtower/update/request" /etc/systemd/system/guardtower-update.path
+            test -f /etc/systemd/system/guardtower-update.service
+            test "$(stat -c %U /var/lib/guardtower/update)" = guardtower
+            grep -q "enable --now guardtower-update.path" /tmp/systemctl.log
+            # What the web UI does, then what the path unit starts:
+            su -s /bin/sh guardtower -c "touch /var/lib/guardtower/update/request"
+            /usr/local/lib/guardtower/self-update
+            cat /var/lib/guardtower/update/last.log
+            test "$(cat /var/lib/guardtower/update/last.exit)" = 0
+            test ! -e /var/lib/guardtower/update/request
+            grep -q "GuardTower upgraded" /var/lib/guardtower/update/last.log
+            bash /src/install.sh --uninstall
+            test ! -e /etc/systemd/system/guardtower-update.path -a ! -e /usr/local/lib/guardtower
+          '
 
   docker:
     name: Docker image builds

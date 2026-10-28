@@ -15,7 +15,7 @@ import { Markdown } from './Markdown'
 import { Logo } from './Logo'
 import { ChangePasswordDialog } from './ChangePasswordDialog'
 import { ErrorBoundary } from './ErrorBoundary'
-import { UpdateBanner } from './UpdateBanner'
+import { UpdateButton } from './UpdateButton'
 import { useOnChange } from '@/lib/useOnChange'
 
 type Theme = 'light' | 'dark' | 'system'
@@ -148,6 +148,7 @@ export function AppShell() {
             <Kbd>⌘K</Kbd>
           </button>
           <div className="ml-auto flex items-center gap-1">
+            {can('admin') && <UpdateButton />}
             <button
               onClick={() => setHelpOpen(true)}
               className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm text-muted hover:bg-hover hover:text-fg"
@@ -208,7 +209,6 @@ export function AppShell() {
             </DropdownMenu.Root>
           </div>
         </header>
-        {can('admin') && <UpdateBanner />}
         <main id="main" tabIndex={0} className="min-h-0 flex-1 overflow-y-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
           <ErrorBoundary resetKey={loc.pathname}>
             <Outlet />

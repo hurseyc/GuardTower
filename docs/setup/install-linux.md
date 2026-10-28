@@ -96,7 +96,7 @@ GuardTower must be able to reach each AdGuard Home instance's **web/API port** (
 
 ## Upgrading
 
-GuardTower shows admins a banner when a new release is out (see [Updating GuardTower](../admin/updating.md)). Run the installer again with `--upgrade` (or install the newer package). Database migrations run automatically on start. Take a [backup](../admin/backup-restore.md) first if you like; it's one directory.
+When a new release is out, the **Update** button in the top bar lights up for admins. On installs made with this script (or the Proxmox script) it installs the update in one click; see [Updating GuardTower](../admin/updating.md). From the shell, run the installer again with `--upgrade` (or install the newer package). Database migrations run automatically on start. Take a [backup](../admin/backup-restore.md) first if you like; it's one directory.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/hurseyc/GuardTower/main/install/install.sh | sudo bash -s -- --upgrade

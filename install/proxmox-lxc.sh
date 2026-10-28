@@ -25,6 +25,10 @@ die() { printf '\033[1;31merror:\033[0m %s\n' "$*" >&2; exit 1; }
 command -v pct >/dev/null 2>&1 || die "pct not found: run this on a Proxmox VE host"
 
 CTID="${CTID:-$(pvesh get /cluster/nextid)}"
+# pct exec passes our locale into the container, which only has C.UTF-8;
+# en_US.UTF-8 from an SSH session would make apt and perl print warnings.
+export LANG=C.UTF-8 LC_ALL=C.UTF-8
+
 CT_HOSTNAME="${CT_HOSTNAME:-guardtower}"
 STORAGE="${STORAGE:-local-lvm}"
 TEMPLATE_STORAGE="${TEMPLATE_STORAGE:-local}"

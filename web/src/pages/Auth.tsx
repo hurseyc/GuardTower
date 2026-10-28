@@ -51,7 +51,7 @@ export function SetupPage() {
         <Field label="Admin username">
           <Input autoFocus autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} />
         </Field>
-        <Field label="Password" hint="At least 10 characters. A passphrase works well.">
+        <Field label="Password" hint="At least 8 characters. A passphrase works well.">
           <Input type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
         </Field>
         <Field label="Confirm password" error={error}>

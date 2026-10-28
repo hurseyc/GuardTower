@@ -7,9 +7,22 @@ summary: How GuardTower tells you about new releases and how to install them for
 
 # Updating GuardTower
 
-GuardTower checks GitHub for a newer GuardTower release when it starts and every 12 hours. When one exists, admins see a banner at the top of every page with the new version, a link to the release notes and the command for **your** install method. **Hide** dismisses the banner until the next release.
+GuardTower checks GitHub for a newer GuardTower release when it starts and every 12 hours. Admins see the version in the top bar: it turns into a highlighted **Update** button when a new release is out. Click it for the release notes, **Check now**, and either **Update to vX.Y.Z** (installs made with `install.sh` or the Proxmox script) or the command to run for your install method.
 
-The check uses the same switch as AdGuard Home release checks, **Check for releases** (`upgrades.check_releases`) in [Settings](settings.md). Turn it off for air-gapped installs. Development builds never show the banner.
+The check uses the same switch as AdGuard Home release checks, **Check for releases** (`upgrades.check_releases`) in [Settings](settings.md). Turn it off for air-gapped installs. Development builds never offer updates.
+
+## One-click updates (install.sh and Proxmox installs)
+
+**Update to vX.Y.Z** downloads the release from GitHub, verifies its checksum (and cosign signature when `cosign` is installed), replaces the binary, keeps your data and settings, and restarts GuardTower. The page reloads when the new version answers, usually within a minute. If the download or verification fails, nothing is replaced and the dialog shows the installer's log.
+
+How it stays safe: GuardTower runs as the unprivileged `guardtower` user and can't replace its own binary. `install.sh` adds a small root helper instead:
+
+- `guardtower-update.path` watches for `/var/lib/guardtower/update/request`, the only thing the web UI can create;
+- it starts `guardtower-update.service`, which runs the installer (`/usr/local/lib/guardtower/install.sh --upgrade`) and writes `last.log` and `last.exit` next to the request.
+
+The helper ignores what the request says, so the web UI can only ever ask for "the latest signed release", never a particular file or version. Clicks are recorded in the [audit log](audit-log.md) as `guardtower.update`.
+
+**Installed with v1.0.0?** The helper arrived after it. Upgrade once from the shell (below) and the button works from then on.
 
 ## How to update
 
@@ -26,8 +39,10 @@ On Proxmox, run the `install.sh` command inside the container, or from the host:
 
 Your data and settings are kept. Database migrations run automatically on the next start. A [backup](backup-restore.md) first is cheap: it's one directory.
 
-GuardTower doesn't replace its own binary from the web UI. Updating it needs root on the host (or access to the container runtime), and the web UI deliberately never gets that much access.
+Docker and package installs show the command instead of a button: updating them needs the container runtime or the package manager, which the web UI deliberately never gets access to.
 
 ## From scripts
 
-`GET /api/v1/updates/guardtower` (any signed-in user) returns the current and latest versions, whether an update is available, the detected method and the suggested command.
+- `GET /api/v1/updates/guardtower` (any signed-in user) returns the current and latest versions, whether an update is available, the detected method, the suggested command, whether one-click updates are available (`can_self_update`) and the result of the last one.
+- `POST /api/v1/updates/guardtower/check` (admins) checks GitHub now.
+- `POST /api/v1/updates/guardtower/install` (admins) starts a one-click update (`409` when the install can't update itself).

@@ -1,0 +1,11 @@
+# Starts guardtower-update.service when the web UI asks for an update by
+# creating @DATA@/update/request (the only thing GuardTower itself can do).
+[Unit]
+Description=Watch for GuardTower update requests from the web UI
+
+[Path]
+PathExists=@DATA@/update/request
+Unit=guardtower-update.service
+
+[Install]
+WantedBy=multi-user.target

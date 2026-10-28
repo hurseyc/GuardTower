@@ -211,3 +211,36 @@ test.describe.serial('family dns', () => {
     await expect(page.getByRole('button', { name: 'Hide domain' })).toBeVisible()
   })
 })
+
+test.describe.serial('GuardTower updates', () => {
+  // The test server is a dev build without the update helper, so the
+  // update API is faked here to walk through the whole flow in the UI.
+  test('the header button lights up and installs a new release', async ({ page }) => {
+    let phase: 'available' | 'updating' | 'done' = 'available'
+    const status = () => ({
+      current: phase === 'done' ? 'v9.9.9' : 'v1.0.0',
+      latest: 'v9.9.9',
+      url: 'https://github.com/hurseyc/GuardTower/releases/tag/v9.9.9',
+      update_available: phase !== 'done',
+      method: 'systemd',
+      can_self_update: true,
+      updating: phase === 'updating',
+    })
+    await page.route('**/api/v1/updates/guardtower', (r) => r.fulfill({ json: status() }))
+    await page.route('**/api/v1/updates/guardtower/install', (r) => {
+      phase = 'updating'
+      setTimeout(() => (phase = 'done'), 4000)
+      return r.fulfill({ status: 202, json: status() })
+    })
+    await signIn(page)
+    const button = page.getByRole('button', { name: 'Update', exact: true })
+    await expect(button).toBeVisible()
+    await button.click()
+    await expect(page.getByRole('dialog')).toContainText('v9.9.9 is available')
+    await page.getByRole('button', { name: 'Update to v9.9.9' }).click()
+    await expect(page.getByRole('dialog')).toContainText('Downloading and verifying the release')
+    await expect(page.getByText('GuardTower v9.9.9 is installed')).toBeVisible({ timeout: 15_000 })
+    await page.waitForEvent('load')
+    await expect(page.getByRole('button', { name: 'v9.9.9' })).toBeVisible()
+  })
+})
