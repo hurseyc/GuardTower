@@ -33,9 +33,10 @@ Running more than one AdGuard Home for redundancy, or separate instances for dif
 - **Secure by default.** argon2id passwords, encrypted credentials, CSRF protection, roles (admin / operator / viewer), a full audit log, and observe-only mode until you choose to apply changes.
 - **One small binary.** Pure Go with an embedded UI and SQLite. Run it in Docker, a Proxmox LXC or as a systemd service on amd64, arm64 or armv7.
 
+- **Layered settings sync with drift detection.** Import a baseline from any instance, see where every value comes from, and get warned when someone edits an instance by hand.
 - **Query-log warehouse & analytics.** Every query from every instance is stored and searchable in one place, with a live tail, long-term charts, top domains and clients, and a per-instance comparison.
 
-> **Roadmap (in progress):** layered config sync with plan/apply, a topology map, in-place AdGuard Home upgrades (built-in updater, Docker and SSH drivers), and a **Family DNS** section with per-person insight into blocked adult content. See [the plan](docs/dev/PROGRESS.md).
+> **Roadmap (in progress):** a topology map, in-place AdGuard Home upgrades (built-in updater, Docker and SSH drivers), and a **Family DNS** section with per-person insight into blocked adult content. See [the plan](docs/dev/PROGRESS.md).
 
 ## Quick start
 

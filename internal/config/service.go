@@ -21,11 +21,20 @@ type Service struct {
 	fleet *fleet.Service
 	bus   *events.Bus
 	log   *slog.Logger
+	kick  chan struct{}
 }
 
 // NewService creates the config service.
 func NewService(st *store.Store, fl *fleet.Service, bus *events.Bus, log *slog.Logger) *Service {
-	return &Service{st: st, fleet: fl, bus: bus, log: log}
+	return &Service{st: st, fleet: fl, bus: bus, log: log, kick: make(chan struct{}, 1)}
+}
+
+// Kick asks the background checker to compare every instance now.
+func (s *Service) Kick() {
+	select {
+	case s.kick <- struct{}{}:
+	default:
+	}
 }
 
 // ScopeRef identifies a layer owner.
@@ -240,11 +249,13 @@ func (s *Service) ImportBaseline(ctx context.Context, instanceID int64, target S
 
 // SyncSummary is the stored comparison result for one instance.
 type SyncSummary struct {
-	InstanceID int64             `json:"instance_id"`
-	Sections   map[string]int    `json:"sections"` // section → number of differences
-	Errors     map[string]string `json:"errors,omitempty"`
-	Total      int               `json:"total"`
-	CheckedAt  int64             `json:"checked_at"`
+	InstanceID int64 `json:"instance_id"`
+	// Drifted lists sections changed outside GuardTower since it last applied them.
+	Drifted   []string          `json:"drifted"`
+	Sections  map[string]int    `json:"sections"` // section → number of differences
+	Errors    map[string]string `json:"errors,omitempty"`
+	Total     int               `json:"total"`
+	CheckedAt int64             `json:"checked_at"`
 }
 
 // CheckInstance compares desired and live state for one instance and stores the result.
@@ -254,7 +265,8 @@ func (s *Service) CheckInstance(ctx context.Context, in *fleet.Instance) (*SyncS
 		return nil, err
 	}
 	now := time.Now().Unix()
-	sum := &SyncSummary{InstanceID: in.ID, Sections: map[string]int{}, Errors: map[string]string{}, CheckedAt: now}
+	sum := &SyncSummary{InstanceID: in.ID, Sections: map[string]int{}, Errors: map[string]string{}, CheckedAt: now, Drifted: []string{}}
+	lastApplied := s.lastApplied(ctx, in.ID)
 	tx, err := s.st.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -268,8 +280,22 @@ func (s *Service) CheckInstance(ctx context.Context, in *fleet.Instance) (*SyncS
 			continue
 		}
 		b, _ := json.Marshal(st.Changes)
-		if _, err := tx.ExecContext(ctx, `INSERT INTO sync_status (instance_id, section, changes, error, checked_at) VALUES (?, ?, ?, ?, ?)`,
-			in.ID, st.Section, string(b), st.LiveError, now); err != nil {
+		drifted := false
+		if applied, ok := lastApplied[st.Section]; ok && st.Live != nil && len(st.Changes) > 0 {
+			// Compare live against what GuardTower last applied, on managed fields only.
+			ref := Doc{}
+			for k := range st.Desired {
+				if v, ok := applied[k]; ok {
+					ref[k] = v
+				}
+			}
+			drifted = len(Diff(SectionByKey(st.Section), ref, st.Live)) > 0
+		}
+		if drifted {
+			sum.Drifted = append(sum.Drifted, st.Section)
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO sync_status (instance_id, section, changes, error, checked_at, drifted) VALUES (?, ?, ?, ?, ?, ?)`,
+			in.ID, st.Section, string(b), st.LiveError, now, drifted); err != nil {
 			return nil, err
 		}
 		sum.Sections[st.Section] = len(st.Changes)
@@ -281,9 +307,22 @@ func (s *Service) CheckInstance(ctx context.Context, in *fleet.Instance) (*SyncS
 	return sum, tx.Commit()
 }
 
+// lastApplied returns the section docs from the instance's most recent
+// post-apply snapshot (empty if GuardTower never applied anything).
+func (s *Service) lastApplied(ctx context.Context, instanceID int64) map[string]Doc {
+	var raw string
+	err := s.st.DB.QueryRowContext(ctx, `SELECT doc FROM snapshots WHERE instance_id = ? AND kind = 'post-apply' ORDER BY id DESC LIMIT 1`, instanceID).Scan(&raw)
+	out := map[string]Doc{}
+	if err != nil {
+		return out
+	}
+	_ = json.Unmarshal([]byte(raw), &out)
+	return out
+}
+
 // ListSync returns stored comparison results for every instance.
 func (s *Service) ListSync(ctx context.Context) ([]SyncSummary, error) {
-	rows, err := s.st.DB.QueryContext(ctx, `SELECT instance_id, section, changes, error, checked_at FROM sync_status ORDER BY instance_id`)
+	rows, err := s.st.DB.QueryContext(ctx, `SELECT instance_id, section, changes, error, checked_at, drifted FROM sync_status ORDER BY instance_id`)
 	if err != nil {
 		return nil, err
 	}
@@ -293,18 +332,22 @@ func (s *Service) ListSync(ctx context.Context) ([]SyncSummary, error) {
 	for rows.Next() {
 		var id, at int64
 		var section, changes, errText string
-		if err := rows.Scan(&id, &section, &changes, &errText, &at); err != nil {
+		var drifted bool
+		if err := rows.Scan(&id, &section, &changes, &errText, &at, &drifted); err != nil {
 			return nil, err
 		}
 		sum := byID[id]
 		if sum == nil {
-			sum = &SyncSummary{InstanceID: id, Sections: map[string]int{}, Errors: map[string]string{}}
+			sum = &SyncSummary{InstanceID: id, Sections: map[string]int{}, Errors: map[string]string{}, Drifted: []string{}}
 			byID[id] = sum
 			order = append(order, id)
 		}
 		var cs []Change
 		_ = json.Unmarshal([]byte(changes), &cs)
 		sum.Sections[section] = len(cs)
+		if drifted {
+			sum.Drifted = append(sum.Drifted, section)
+		}
 		sum.Total += len(cs)
 		if errText != "" {
 			sum.Errors[section] = errText
@@ -322,10 +365,11 @@ func (s *Service) ListSync(ctx context.Context) ([]SyncSummary, error) {
 
 // RunChecks compares every instance periodically and publishes
 // "sync.changed" when an instance's number of differences changes.
-func (s *Service) RunChecks(ctx context.Context, every time.Duration, kick <-chan struct{}) {
+func (s *Service) RunChecks(ctx context.Context, every time.Duration) {
 	t := time.NewTicker(every)
 	defer t.Stop()
 	last := map[int64]int{}
+	lastDrift := map[int64]int{}
 	var mu sync.Mutex
 	check := func() {
 		insts, err := s.fleet.ListInstances(ctx)
@@ -350,9 +394,15 @@ func (s *Service) RunChecks(ctx context.Context, every time.Duration, kick <-cha
 				mu.Lock()
 				prev, seen := last[in.ID]
 				last[in.ID] = sum.Total
+				prevDrift := lastDrift[in.ID]
+				lastDrift[in.ID] = len(sum.Drifted)
 				mu.Unlock()
 				if !seen || prev != sum.Total {
 					s.bus.Publish("sync.changed", map[string]any{"instance_id": in.ID, "name": in.Name, "total": sum.Total, "previous": prev, "first": !seen})
+				}
+				if len(sum.Drifted) > prevDrift {
+					s.bus.Publish("drift.detected", map[string]any{"instance_id": in.ID, "name": in.Name, "sections": sum.Drifted})
+					_ = s.st.Audit(ctx, store.AuditEntry{Action: "drift.detected", Target: in.Name, Detail: mustJSON(map[string]any{"sections": sum.Drifted})})
 				}
 			}(in)
 		}
@@ -364,7 +414,7 @@ func (s *Service) RunChecks(ctx context.Context, every time.Duration, kick <-cha
 		case <-ctx.Done():
 			return
 		case <-t.C:
-		case <-kick:
+		case <-s.kick:
 		}
 		check()
 	}
@@ -404,4 +454,9 @@ func (s *Service) ApplyInstance(ctx context.Context, instanceID int64, sections 
 		applied = append(applied, st.Changes...)
 	}
 	return applied, nil
+}
+
+func mustJSON(v any) string {
+	b, _ := json.Marshal(v)
+	return string(b)
 }

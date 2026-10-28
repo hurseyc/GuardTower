@@ -14,6 +14,7 @@ import { AnalyticsPage } from '@/pages/Analytics'
 import { QueryLogPage } from '@/pages/QueryLog'
 import { SettingsPage } from '@/pages/Settings'
 import { ConfigPage } from '@/pages/Config'
+import { ChangesPage } from '@/pages/Changes'
 
 function Gate() {
   const { loading, needsSetup, user, can } = useSession()
@@ -47,6 +48,7 @@ function Gate() {
         <Route path="groups" element={<GroupsPage />} />
         <Route path="hosts" element={<HostsPage />} />
         <Route path="config" element={<ConfigPage />} />
+        <Route path="changes" element={<ChangesPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
         <Route path="logs" element={<QueryLogPage />} />
         {can('admin') && <Route path="users" element={<UsersPage />} />}

@@ -1,6 +1,6 @@
 // Client-side mirror of the server's layer merge (internal/config/merge.go),
 // used to show what a scope inherits. The server remains the source of truth.
-import type { ConfigField, ConfigSection, LayerDoc } from './api'
+import type { Change, ConfigField, ConfigSection, LayerDoc } from './api'
 
 export function keyOf(sectionKey: string, field: ConfigField, item: Record<string, unknown>): string {
   if (sectionKey === 'rewrites') return `${String(item.domain ?? '')} → ${String(item.answer ?? '')}`
@@ -64,3 +64,19 @@ export function fmtDuration(ms: number): string {
   if (h >= 1 && Number.isInteger(h)) return `${h} hour${h === 1 ? '' : 's'}`
   return `${ms} ms`
 }
+
+/** One-line description of a pending change. */
+export function describe(c: Change, sec?: ConfigSection): string {
+  const f = sec?.fields.find((x) => x.name === c.field)
+  switch (c.op) {
+    case 'set':
+      return f ? `${fmtValue(f, c.from)} → ${fmtValue(f, c.to)}` : 'change value'
+    case 'add':
+      return `add ${c.item}`
+    case 'remove':
+      return `remove ${c.item}`
+    case 'update':
+      return `update ${c.item}`
+  }
+}
+

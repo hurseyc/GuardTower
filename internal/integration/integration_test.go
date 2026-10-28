@@ -11,10 +11,13 @@ package integration
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -28,6 +31,7 @@ import (
 	"github.com/hurseyc/guardtower/internal/devfleet"
 	"github.com/hurseyc/guardtower/internal/fleet"
 	"github.com/hurseyc/guardtower/internal/querylog"
+	"github.com/hurseyc/guardtower/internal/rollout"
 	"github.com/hurseyc/guardtower/internal/store"
 )
 
@@ -273,5 +277,147 @@ func TestConfigSyncAllSections(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func waitRollout(t *testing.T, a *app.App, id int64) *rollout.Rollout {
+	t.Helper()
+	deadline := time.Now().Add(90 * time.Second)
+	for time.Now().Before(deadline) {
+		r, err := a.Rollout.Get(context.Background(), id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if r.Status != "running" && a.Rollout.ActiveID() == 0 {
+			return r
+		}
+		time.Sleep(300 * time.Millisecond)
+	}
+	t.Fatal("rollout did not finish")
+	return nil
+}
+
+// TestRolloutCanaryRollbackAndRestore covers the M4 exit criteria on real
+// AdGuard Home: a good change rolls out canary-first; a change that breaks
+// DNS (an unreachable upstream) is detected on the canary, rolled back
+// automatically and never reaches the other instance; snapshots restore.
+func TestRolloutCanaryRollbackAndRestore(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	st, err := store.OpenPath(ctx, ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	box, _ := crypto.New(make([]byte, 32))
+	a := app.NewWith(app.Config{Log: slog.New(slog.NewTextHandler(io.Discard, nil))}, st, box)
+	a.Rollout.SetRoot(ctx)
+	a.Rollout.SettleDelay = 500 * time.Millisecond
+	pw := devfleet.Password
+	g, _ := a.Fleet.SaveGroup(ctx, 0, "G", "", "")
+	var ids []int64
+	for i, canary := range []bool{true, false} {
+		node, _ := startNode(t, "latest", 20+i)
+		in, err := a.Fleet.CreateInstance(ctx, fleet.InstanceInput{Name: fmt.Sprintf("agh-%d", i+1), URL: node.URL, Username: devfleet.User,
+			Password: &pw, GroupID: g.ID, IsCanary: canary, DNSAddress: node.DNSAddr})
+		if err != nil {
+			t.Fatal(err)
+		}
+		// Mark online (normally done by the status poller).
+		_ = a.Fleet.SaveStatus(ctx, in.ID, a.Poller.Probe(ctx, in))
+		ids = append(ids, in.ID)
+	}
+	if err := a.Config.ImportBaseline(ctx, ids[0], config.ScopeRef{Scope: config.ScopeBase}, []string{"dns", "rewrites"}, "test"); err != nil {
+		t.Fatal(err)
+	}
+	target := rollout.Target{Kind: "group", ID: g.ID}
+	group := config.ScopeRef{Scope: config.ScopeGroup, ID: g.ID}
+	setLayer := func(sec, js string) {
+		d, _ := config.ParseDoc([]byte(js))
+		if _, err := a.Config.SetLayer(ctx, group, sec, d, "test"); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Observe mode (the default) refuses to apply.
+	setLayer("rewrites", `{"rewrites": {"upsert": [{"domain": "nas.home", "answer": "192.168.1.20", "enabled": true}]}}`)
+	if _, err := a.Rollout.Start(ctx, target, nil, "test"); !errors.Is(err, rollout.ErrObserveMode) {
+		t.Fatalf("expected observe-mode refusal, got %v", err)
+	}
+	_ = st.SetSetting(ctx, rollout.SettingObserve, "false")
+
+	// 1. A good change: canary first, both succeed, both in sync.
+	plan, err := a.Rollout.MakePlan(ctx, target, nil)
+	if err != nil || plan.Total != 2 || !plan.Items[0].Canary {
+		t.Fatalf("plan: %+v %v", plan, err)
+	}
+	id, err := a.Rollout.Start(ctx, target, nil, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := waitRollout(t, a, id)
+	if r.Status != "succeeded" || len(r.Steps) != 2 || r.Steps[0].InstanceID != ids[0] {
+		t.Fatalf("good rollout: %+v", r)
+	}
+	for _, s := range r.Steps {
+		if s.Status != "succeeded" || s.SnapshotID == 0 {
+			t.Fatalf("step: %+v", s)
+		}
+	}
+
+	// 2. A bad upstream: the canary breaks, is rolled back, agh-2 is untouched.
+	before, _ := a.Config.Effective(ctx, ids[0], true)
+	var upstreamBefore any
+	for _, s := range before {
+		if s.Section == "dns" {
+			upstreamBefore = s.Live["upstream_dns"]
+		}
+	}
+	setLayer("dns", `{"upstream_dns": ["127.0.0.1:1"], "upstream_timeout": 1}`)
+	id, err = a.Rollout.Start(ctx, target, []string{"dns"}, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	r = waitRollout(t, a, id)
+	if r.Status != "rolled_back" {
+		t.Fatalf("bad rollout should roll back, got %s (%s)", r.Status, r.Error)
+	}
+	if r.Steps[0].Status != "rolled_back" || r.Steps[1].Status != "skipped" {
+		t.Fatalf("steps: canary=%s (%s) other=%s", r.Steps[0].Status, r.Steps[0].Detail, r.Steps[1].Status)
+	}
+	after, _ := a.Config.Effective(ctx, ids[0], true)
+	for _, s := range after {
+		if s.Section == "dns" && !reflect.DeepEqual(s.Live["upstream_dns"], upstreamBefore) {
+			t.Fatalf("canary upstreams not restored: %v vs %v", s.Live["upstream_dns"], upstreamBefore)
+		}
+	}
+	other, _ := a.Config.Effective(ctx, ids[1], true)
+	for _, s := range other {
+		if s.Section == "dns" && reflect.DeepEqual(s.Live["upstream_dns"], []any{"127.0.0.1:1"}) {
+			t.Fatal("bad change reached the non-canary instance")
+		}
+	}
+
+	// 3. Restore agh-2 to its snapshot from before the good rollout.
+	setLayer("dns", `{}`)
+	snaps, _ := a.Rollout.ListSnapshots(ctx, ids[1], 50)
+	var pre int64
+	for _, s := range snaps {
+		if s.Kind == "pre-apply" {
+			pre = s.ID // oldest pre-apply wins (list is newest first)
+		}
+	}
+	rid, err := a.Rollout.Restore(ctx, pre, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r := waitRollout(t, a, rid); r.Status != "succeeded" {
+		t.Fatalf("restore: %s %s", r.Status, r.Error)
+	}
+	restored, _ := a.Config.Effective(ctx, ids[1], true)
+	for _, s := range restored {
+		if s.Section == "rewrites" && len(s.Changes) != 1 {
+			t.Fatalf("after restore the rewrite should be pending again, changes=%+v", s.Changes)
+		}
 	}
 }

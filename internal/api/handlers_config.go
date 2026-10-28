@@ -9,14 +9,7 @@ import (
 	"github.com/hurseyc/guardtower/internal/config"
 )
 
-func (s *Server) kickSync() {
-	if s.SyncKick != nil {
-		select {
-		case s.SyncKick <- struct{}{}:
-		default:
-		}
-	}
-}
+func (s *Server) kickSync() { s.Config.Kick() }
 
 func (s *Server) handleConfigSchema(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, config.Sections)
