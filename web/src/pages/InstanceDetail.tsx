@@ -4,11 +4,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { ArrowLeft, ExternalLink, Pencil, RefreshCw, ShieldCheck, ShieldOff } from 'lucide-react'
 import { api, type Instance, type Overview } from '@/lib/api'
-import { useSession } from '@/lib/session'
+import { useSession } from '@/lib/sessionContext'
 import { colorFor, fmtDateTime, timeAgo } from '@/lib/utils'
 import { PageHeader } from '@/components/AppShell'
 import { Badge, Button, Card, CardHeader, Dialog, Select, Skeleton, StatusDot } from '@/components/ui'
 import { InstanceDialog } from '@/components/InstanceDialog'
+import { SyncCard } from '@/components/SyncCard'
+import { SnapshotsCard } from '@/components/SnapshotsCard'
+import { UpgradeCard } from '@/components/UpgradeCard'
 
 const runtimeLabel: Record<string, string> = {
   unknown: 'Not specified',
@@ -89,7 +92,7 @@ export function InstanceDetailPage() {
           </>
         }
       />
-      <div className="grid gap-6 p-6 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 p-6 xl:grid-cols-3">
         <Card className="xl:col-span-2">
           <CardHeader title="Connection" />
           <dl className="grid gap-x-6 gap-y-4 px-5 pb-5 text-sm sm:grid-cols-2">
@@ -157,6 +160,9 @@ export function InstanceDetailPage() {
             </Item>
           </dl>
         </Card>
+        <SyncCard instanceId={inst.id} />
+        <SnapshotsCard instanceId={inst.id} instanceName={inst.name} />
+        <UpgradeCard instanceId={inst.id} />
       </div>
       <InstanceDialog open={edit} onOpenChange={setEdit} instance={inst} groups={ov?.groups ?? []} hosts={ov?.hosts ?? []} />
       <Dialog

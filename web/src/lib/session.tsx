@@ -1,18 +1,8 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { api, setCsrf, type Role, type User } from './api'
+import { SessionContext } from '@/lib/sessionContext'
 
-interface SessionState {
-  loading: boolean
-  needsSetup: boolean
-  user: User | null
-  refresh: () => Promise<void>
-  signIn: (user: User, csrf: string) => void
-  signOut: () => Promise<void>
-  can: (role: Role) => boolean
-}
-
-const SessionContext = createContext<SessionState | null>(null)
 const rank: Record<Role, number> = { viewer: 1, operator: 2, admin: 3 }
 
 export function SessionProvider({ children }: { children: ReactNode }) {
@@ -67,8 +57,3 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   return <SessionContext.Provider value={{ loading, needsSetup, user, refresh, signIn, signOut, can }}>{children}</SessionContext.Provider>
 }
 
-export function useSession() {
-  const ctx = useContext(SessionContext)
-  if (!ctx) throw new Error('useSession outside SessionProvider')
-  return ctx
-}

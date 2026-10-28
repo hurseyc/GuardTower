@@ -3,32 +3,41 @@ import { Link, useNavigate, useSearchParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Pencil, Plus, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react'
-import { api, type Instance, type Overview } from '@/lib/api'
-import { useSession } from '@/lib/session'
+import { api, type Instance, type Overview, type SyncSummary } from '@/lib/api'
+import { useSession } from '@/lib/sessionContext'
 import { colorFor, timeAgo } from '@/lib/utils'
+import { RiskMarker } from '@/components/Resilience'
+import { useResilience } from '@/lib/resilience'
 import { PageHeader } from '@/components/AppShell'
 import { Badge, Button, Card, ConfirmDialog, EmptyState, Input, Select, Skeleton, StatusDot, Table, Td, Th, Tip } from '@/components/ui'
 import { InstanceDialog } from '@/components/InstanceDialog'
+import { useOnChange } from '@/lib/useOnChange'
 
 export function InstancesPage() {
+  const { data: res } = useResilience()
   const { can } = useSession()
   const qc = useQueryClient()
   const nav = useNavigate()
   const [params, setParams] = useSearchParams()
   const { data, isLoading } = useQuery({ queryKey: ['overview'], queryFn: () => api.get<Overview>('/overview') })
+  const { data: sync } = useQuery({ queryKey: ['sync'], queryFn: () => api.get<SyncSummary[]>('/sync'), refetchInterval: 60_000 })
+  const syncById = new Map((sync ?? []).map((s) => [s.instance_id, s]))
   const [dialog, setDialog] = useState<{ open: boolean; instance?: Instance }>({ open: false })
   const [toDelete, setToDelete] = useState<Instance | null>(null)
   const [q, setQ] = useState('')
   const [groupFilter, setGroupFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
 
+  // ?add=1 (from the command palette or Overview) opens the dialog once.
+  const addRequested = params.get('add') === '1' && can('admin')
+  useOnChange(addRequested, (v) => {
+    if (v) setDialog({ open: true })
+  })
   useEffect(() => {
-    if (params.get('add') === '1' && can('admin')) {
-      setDialog({ open: true })
-      params.delete('add')
-      setParams(params, { replace: true })
-    }
-  }, [params, setParams, can])
+    if (!addRequested) return
+    params.delete('add')
+    setParams(params, { replace: true })
+  }, [addRequested, params, setParams])
 
   const del = useMutation({
     mutationFn: (id: number) => api.del(`/instances/${id}`),
@@ -76,7 +85,7 @@ export function InstancesPage() {
         <Card>
           <div className="flex flex-wrap items-center gap-2 border-b border-border p-3">
             <Input placeholder="Filter by name, URL, tag or version…" value={q} onChange={(e) => setQ(e.target.value)} className="max-w-xs" />
-            <Select value={groupFilter} onChange={(e) => setGroupFilter(e.target.value)} className="w-44">
+            <Select value={groupFilter} onChange={(e) => setGroupFilter(e.target.value)} className="w-44" aria-label="Filter by group">
               <option value="all">All groups</option>
               <option value="0">Ungrouped</option>
               {groups.map((g) => (
@@ -85,7 +94,7 @@ export function InstancesPage() {
                 </option>
               ))}
             </Select>
-            <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-36">
+            <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-36" aria-label="Filter by status">
               <option value="all">Any status</option>
               <option value="online">Online</option>
               <option value="offline">Offline</option>
@@ -119,9 +128,10 @@ export function InstancesPage() {
                 <tr>
                   <Th>Instance</Th>
                   <Th>Group</Th>
-                  <Th>Host</Th>
-                  <Th>Version</Th>
+                  <Th className="hidden md:table-cell">Host</Th>
+                  <Th className="hidden md:table-cell">Version</Th>
                   <Th>Status</Th>
+                  <Th className="hidden lg:table-cell">Settings</Th>
                   <Th className="text-right">Actions</Th>
                 </tr>
               </thead>
@@ -151,13 +161,14 @@ export function InstancesPage() {
                           <span className="inline-flex items-center gap-1.5 text-sm">
                             <span className="h-2 w-2 rounded-full" style={{ background: colorFor(g.name, g.color) }} />
                             {g.name}
+                            <RiskMarker findings={(res?.groups.find((x) => x.group_id === g.id)?.findings ?? []).filter((f) => f.instance_ids.includes(i.id))} />
                           </span>
                         ) : (
                           <span className="text-faint">—</span>
                         )}
                       </Td>
-                      <Td className="text-sm">{h ? h.name : <span className="text-faint">—</span>}</Td>
-                      <Td className="font-mono text-xs">{i.status?.version || '—'}</Td>
+                      <Td className="hidden text-sm md:table-cell">{h ? h.name : <span className="text-faint">—</span>}</Td>
+                      <Td className="hidden font-mono text-xs md:table-cell">{i.status?.version || '—'}</Td>
                       <Td>
                         {i.status?.online ? (
                           <span className="text-xs text-muted">
@@ -168,6 +179,14 @@ export function InstancesPage() {
                             <span className="text-xs text-danger">Offline · seen {timeAgo(i.status?.last_seen_at)}</span>
                           </Tip>
                         )}
+                      </Td>
+                      <Td className="hidden lg:table-cell">
+                        {(() => {
+                          const s = syncById.get(i.id)
+                          if (!s) return <span className="text-xs text-faint">not managed</span>
+                          if (s.errors && Object.keys(s.errors).length) return <Badge tone="danger">check failed</Badge>
+                          return s.total === 0 ? <Badge tone="ok">in sync</Badge> : <Badge tone="warn">{s.total} to change</Badge>
+                        })()}
                       </Td>
                       <Td className="text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-end gap-1">
