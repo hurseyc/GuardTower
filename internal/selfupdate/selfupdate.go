@@ -5,9 +5,13 @@ package selfupdate
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -33,7 +37,23 @@ type Status struct {
 	Command         string `json:"command,omitempty"`
 	CheckedAt       int64  `json:"checked_at,omitempty"`
 	Error           string `json:"error,omitempty"`
+	// CanSelfUpdate is true when install.sh set up the root update helper,
+	// so the web UI can start an update itself.
+	CanSelfUpdate bool `json:"can_self_update"`
+	// Updating is true from the request until the helper reports a result.
+	Updating bool        `json:"updating"`
+	Last     *LastUpdate `json:"last_update,omitempty"`
 }
+
+// LastUpdate is the result of the most recent in-app update.
+type LastUpdate struct {
+	ExitCode int    `json:"exit_code"`
+	At       int64  `json:"at"`
+	Log      string `json:"log"`
+}
+
+// ErrNoSelfUpdate is returned when this install can't update itself.
+var ErrNoSelfUpdate = errors.New("this install can't update itself from the web UI; run the update command shown instead")
 
 // Checker polls GitHub for the latest GuardTower release.
 type Checker struct {
@@ -42,6 +62,11 @@ type Checker struct {
 	HTTP      *http.Client
 	// Enabled reports whether release checks are allowed (privacy setting).
 	Enabled func(ctx context.Context) bool
+	// UpdateDir is <data dir>/update, shared with the root update helper
+	// (see install/install.sh). Empty disables in-app updates.
+	UpdateDir string
+	// HelperUnit is the systemd path unit that runs the helper.
+	HelperUnit string
 
 	mu sync.Mutex
 	st Status
@@ -50,10 +75,11 @@ type Checker struct {
 // New creates a checker for the GuardTower repository.
 func New(enabled func(ctx context.Context) bool) *Checker {
 	c := &Checker{
-		APIURL:    "https://api.github.com/repos/hurseyc/GuardTower/releases/latest",
-		LatestURL: "https://github.com/hurseyc/GuardTower/releases/latest",
-		HTTP:      &http.Client{Timeout: 20 * time.Second},
-		Enabled:   enabled,
+		APIURL:     "https://api.github.com/repos/hurseyc/GuardTower/releases/latest",
+		LatestURL:  "https://github.com/hurseyc/GuardTower/releases/latest",
+		HTTP:       &http.Client{Timeout: 20 * time.Second},
+		Enabled:    enabled,
+		HelperUnit: "/etc/systemd/system/guardtower-update.path",
 	}
 	c.st = Status{Current: version.Version, Method: DetectMethod()}
 	c.st.Command = command(c.st.Method)
@@ -86,11 +112,78 @@ func command(method string) string {
 	return ""
 }
 
-// Status returns the last check result.
+// Status returns the last check result and the state of in-app updates.
 func (c *Checker) Status() Status {
 	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.st
+	st := c.st
+	c.mu.Unlock()
+	st.CanSelfUpdate = c.canSelfUpdate()
+	if st.CanSelfUpdate {
+		st.Last = c.last()
+		now := time.Now().UnixMilli()
+		requested := fileTime(filepath.Join(c.UpdateDir, "request"))
+		started := fileTime(filepath.Join(c.UpdateDir, "started"))
+		running := started > 0 && (st.Last == nil || st.Last.At < started) && now-started < 15*60*1000
+		switch {
+		case running:
+			st.Updating = true
+		case requested > 0 && now-requested < 2*60*1000:
+			st.Updating = true // waiting for the helper to pick the request up
+		case requested > 0:
+			st.Error = "the update was requested but the update helper didn't start; check 'systemctl status guardtower-update.path'"
+		}
+	}
+	return st
+}
+
+func (c *Checker) canSelfUpdate() bool {
+	if c.UpdateDir == "" || c.st.Method != MethodSystemd {
+		return false
+	}
+	if _, err := os.Stat(c.HelperUnit); err != nil {
+		return false
+	}
+	fi, err := os.Stat(c.UpdateDir)
+	return err == nil && fi.IsDir()
+}
+
+var ansi = regexp.MustCompile(`\x1b\[[0-9;]*m`)
+
+func (c *Checker) last() *LastUpdate {
+	exitPath := filepath.Join(c.UpdateDir, "last.exit")
+	b, err := os.ReadFile(exitPath) //nolint:gosec // inside our own data dir, not from a request
+	if err != nil {
+		return nil
+	}
+	code, err := strconv.Atoi(strings.TrimSpace(string(b)))
+	if err != nil {
+		code = -1
+	}
+	lu := &LastUpdate{ExitCode: code, At: fileTime(exitPath)}
+	if log, err := os.ReadFile(filepath.Join(c.UpdateDir, "last.log")); err == nil {
+		if len(log) > 4000 {
+			log = log[len(log)-4000:]
+		}
+		lu.Log = ansi.ReplaceAllString(string(log), "")
+	}
+	return lu
+}
+
+func fileTime(p string) int64 {
+	fi, err := os.Stat(p)
+	if err != nil {
+		return 0
+	}
+	return fi.ModTime().UnixMilli()
+}
+
+// RequestUpdate asks the root helper to install the latest release. The
+// helper ignores the file's contents, so this can only ever mean "latest".
+func (c *Checker) RequestUpdate() error {
+	if !c.canSelfUpdate() {
+		return ErrNoSelfUpdate
+	}
+	return os.WriteFile(filepath.Join(c.UpdateDir, "request"), []byte(time.Now().UTC().Format(time.RFC3339)+"\n"), 0o600)
 }
 
 // Check asks GitHub for the latest release.

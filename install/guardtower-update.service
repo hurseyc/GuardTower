@@ -1,0 +1,11 @@
+# Runs the verified installer as root to upgrade GuardTower to the latest
+# release. It ignores what the request file says, so the web UI can only
+# ask for "the latest signed release", never a specific file or version.
+[Unit]
+Description=Update GuardTower to the latest release
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/lib/guardtower/self-update

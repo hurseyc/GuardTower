@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"path/filepath"
 	"time"
 
 	"github.com/hurseyc/guardtower/internal/api"
@@ -110,6 +111,9 @@ func NewWith(cfg Config, st *store.Store, box *crypto.Box) *App {
 	a.Upgrade.OnChanged = a.Poller.Kick
 	a.Notify = notify.New(st, box)
 	a.SelfUpdate = selfupdate.New(a.Upgrade.Releases.Enabled)
+	if cfg.DataDir != "" {
+		a.SelfUpdate.UpdateDir = filepath.Join(cfg.DataDir, "update")
+	}
 	a.Proxmox = proxmox.New(st, box, fl, cfg.Log)
 	a.Proxmox.OnMoved = func(m []proxmox.Move) { bus.Publish("placement.changed", m) }
 	a.Family = family.New(st, fl, bus, a.Notify, cfg.Log)

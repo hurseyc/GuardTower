@@ -158,6 +158,8 @@ func New(d Deps) *Server {
 				r.Put("/groups/{id}", s.handleSaveGroup)
 				r.Delete("/groups/{id}", s.handleDeleteGroup)
 				r.Post("/proxmox", s.handleSaveProxmox)
+				r.Post("/updates/guardtower/check", s.handleSelfUpdateCheck)
+				r.Post("/updates/guardtower/install", s.handleSelfUpdateInstall)
 				r.Put("/proxmox/{id}", s.handleSaveProxmox)
 				r.Delete("/proxmox/{id}", s.handleDeleteProxmox)
 				r.Post("/proxmox/test", s.handleTestProxmox)

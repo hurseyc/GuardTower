@@ -15,7 +15,7 @@ The first time you open GuardTower it shows the **Welcome** screen and asks you 
 | Field | Notes |
 |---|---|
 | Admin username | Letters, digits and `. _ - @`. Usernames are case-insensitive. |
-| Password | At least 10 characters. A passphrase of several words is easiest to remember. |
+| Password | At least 8 characters. A passphrase of several words is easiest to remember. |
 
 The setup screen can only be used once: after an account exists it is permanently disabled, so nobody else on your network can claim the installation.
 

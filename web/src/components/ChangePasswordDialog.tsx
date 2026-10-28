@@ -46,7 +46,7 @@ export function ChangePasswordDialog({ open, onOpenChange }: { open: boolean; on
         <Field label="Current password">
           <Input type="password" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} />
         </Field>
-        <Field label="New password" hint="At least 10 characters">
+        <Field label="New password" hint="At least 8 characters">
           <Input type="password" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} />
         </Field>
         <Field label="Confirm new password" error={error}>

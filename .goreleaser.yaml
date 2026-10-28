@@ -27,7 +27,7 @@ archives:
     formats: [tar.gz]
     format_overrides:
       - { goos: windows, formats: [zip] }
-    files: [LICENSE, README.md, install/guardtower.service]
+    files: [LICENSE, README.md, install/guardtower.service, install/guardtower-update.path, install/guardtower-update.service, install/install.sh]
 
 nfpms:
   - package_name: guardtower

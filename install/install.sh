@@ -22,6 +22,8 @@ REPO="hurseyc/GuardTower"
 BASE_URL="${GT_INSTALL_BASE_URL:-https://github.com/${REPO}/releases}"
 BIN=/usr/local/bin/guardtower
 UNIT=/etc/systemd/system/guardtower.service
+UPDATER_DIR=/usr/local/lib/guardtower
+UPDATER_UNITS="/etc/systemd/system/guardtower-update.path /etc/systemd/system/guardtower-update.service"
 DEFAULTS=/etc/default/guardtower
 DATA=/var/lib/guardtower
 
@@ -58,9 +60,11 @@ has_systemd() { command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system
 
 if [ "$MODE" = uninstall ]; then
   if has_systemd; then
-    systemctl disable --now guardtower >/dev/null 2>&1 || true
+    systemctl disable --now guardtower guardtower-update.path >/dev/null 2>&1 || true
   fi
-  rm -f "$UNIT" "$BIN"
+  # shellcheck disable=SC2086 # UPDATER_UNITS is a list of paths
+  rm -f "$UNIT" "$BIN" $UPDATER_UNITS
+  rm -rf "$UPDATER_DIR"
   if has_systemd; then systemctl daemon-reload; fi
   if [ "$PURGE" = 1 ]; then
     rm -rf "$DATA" "$DEFAULTS"
@@ -146,13 +150,42 @@ GT_DATA_DIR=$DATA
 EOF
 fi
 
+# In-app updates: the web UI (running as the guardtower user) can only create
+# $DATA/update/request; a root path unit then runs this installer with
+# --upgrade, which downloads and verifies the latest release as usual.
+install_updater() {
+  [ -f "$TMP/install/install.sh" ] && [ -f "$TMP/install/guardtower-update.path" ] || return 0 # older archives
+  install -d -m 0755 "$UPDATER_DIR"
+  install -m 0755 "$TMP/install/install.sh" "$UPDATER_DIR/install.sh"
+  cat > "$UPDATER_DIR/self-update" <<SCRIPT
+#!/bin/sh
+# Started by guardtower-update.service. Runs a copy of the installer, since
+# the upgrade replaces $UPDATER_DIR/install.sh while it runs.
+rm -f "$DATA/update/request"
+tmp=\$(mktemp)
+cp "$UPDATER_DIR/install.sh" "\$tmp"
+date -u +%s > "$DATA/update/started"
+bash "\$tmp" --upgrade > "$DATA/update/last.log" 2>&1
+echo \$? > "$DATA/update/last.exit"
+rm -f "\$tmp"
+SCRIPT
+  chmod 0755 "$UPDATER_DIR/self-update"
+  install -d -o guardtower -g guardtower -m 0750 "$DATA/update"
+  sed "s#@DATA@#$DATA#g" "$TMP/install/guardtower-update.path" > /etc/systemd/system/guardtower-update.path
+  install -m 0644 "$TMP/install/guardtower-update.service" /etc/systemd/system/guardtower-update.service
+}
+
 if has_systemd; then
   if [ -f "$TMP/install/guardtower.service" ]; then
     sed "s#/usr/bin/guardtower#$BIN#" "$TMP/install/guardtower.service" > "$UNIT"
   else
     die "the archive is missing install/guardtower.service"
   fi
+  install_updater
   systemctl daemon-reload
+  if [ -f /etc/systemd/system/guardtower-update.path ]; then
+    systemctl enable --now guardtower-update.path >/dev/null 2>&1 || warn "could not enable in-app updates"
+  fi
   if [ "$START" = 1 ]; then
     systemctl enable guardtower >/dev/null 2>&1
     systemctl restart guardtower
