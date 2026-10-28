@@ -151,16 +151,17 @@ func TestCollectorAgainstRealAdGuardHome(t *testing.T) {
 		}
 	}
 	query("one.example", "two.example", "three.example")
-	// AdGuard Home flushes its in-memory query-log buffer asynchronously.
+	// AdGuard Home logs a query when it completes (a slow upstream can take
+	// seconds) and flushes its buffer asynchronously, so keep collecting
+	// until all three are stored.
 	waitFor(t, func() bool {
-		n, err := a.Collector.CollectOne(ctx, in)
-		return err == nil && n > 0
+		if _, err := a.Collector.CollectOne(ctx, in); err != nil {
+			return false
+		}
+		var n int
+		_ = st.DB.QueryRow(`SELECT COUNT(*) FROM query_log WHERE domain IN ('one.example', 'two.example', 'three.example')`).Scan(&n)
+		return n == 3
 	})
-	var first int
-	_ = st.DB.QueryRow(`SELECT COUNT(*) FROM query_log`).Scan(&first)
-	if first < 3 {
-		t.Fatalf("expected at least 3 rows, got %d", first)
-	}
 	// A second run without new traffic stores nothing (dedupe + cursor).
 	if n, err := a.Collector.CollectOne(ctx, in); err != nil || n != 0 {
 		t.Fatalf("second run: n=%d err=%v", n, err)
