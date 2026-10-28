@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/hurseyc/guardtower/internal/auth"
+	"github.com/hurseyc/guardtower/internal/config"
 	"github.com/hurseyc/guardtower/internal/events"
 	"github.com/hurseyc/guardtower/internal/fleet"
 	"github.com/hurseyc/guardtower/internal/querylog"
@@ -26,6 +27,8 @@ type Deps struct {
 	Fleet    *fleet.Service
 	Poller   *fleet.Poller
 	QueryLog *querylog.Store
+	Config   *config.Service
+	SyncKick chan struct{}
 	Bus      *events.Bus
 	WebFS    fs.FS // built SPA (index.html at root); nil serves a placeholder
 	DocsFS   fs.FS // markdown docs
@@ -76,11 +79,16 @@ func New(d Deps) *Server {
 			r.Get("/querylog", s.handleQueryLog)
 			r.Get("/stats/summary", s.handleStatsSummary)
 			r.Get("/collector", s.handleCollectorStates)
+			r.Get("/config/schema", s.handleConfigSchema)
+			r.Get("/config/layers", s.handleGetLayers)
+			r.Get("/instances/{id}/config", s.handleInstanceConfig)
+			r.Get("/sync", s.handleListSync)
 
 			r.Group(func(r chi.Router) {
 				r.Use(requireRole(auth.RoleOperator))
 				r.Post("/instances/{id}/protection", s.handleSetProtection)
 				r.Post("/instances/{id}/refresh", s.handleRefreshInstance)
+				r.Post("/sync/check", s.handleCheckSync)
 			})
 
 			r.Group(func(r chi.Router) {
@@ -105,6 +113,8 @@ func New(d Deps) *Server {
 				r.Delete("/users/{id}", s.handleDeleteUser)
 				r.Get("/audit", s.handleListAudit)
 				r.Get("/settings", s.handleGetSettings)
+				r.Put("/config/layers/{scope}/{scopeID}/{section}", s.handlePutLayer)
+				r.Post("/config/import", s.handleImportBaseline)
 				r.Put("/settings", s.handlePutSettings)
 			})
 		})

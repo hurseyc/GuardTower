@@ -12,6 +12,7 @@ import (
 	"github.com/hurseyc/guardtower/internal/api"
 	"github.com/hurseyc/guardtower/internal/auth"
 	"github.com/hurseyc/guardtower/internal/collector"
+	"github.com/hurseyc/guardtower/internal/config"
 	"github.com/hurseyc/guardtower/internal/crypto"
 	"github.com/hurseyc/guardtower/internal/events"
 	"github.com/hurseyc/guardtower/internal/fleet"
@@ -43,6 +44,8 @@ type App struct {
 	Poller    *fleet.Poller
 	QueryLog  *querylog.Store
 	Collector *collector.Collector
+	Config    *config.Service
+	syncKick  chan struct{}
 	Bus       *events.Bus
 	server    *api.Server
 }
@@ -72,6 +75,8 @@ func NewWith(cfg Config, st *store.Store, box *crypto.Box) *App {
 	bus := events.NewBus()
 	fl := fleet.NewService(st, box)
 	ql := querylog.New(st)
+	cs := config.NewService(st, fl, bus, cfg.Log)
+	kick := make(chan struct{}, 1)
 	a := &App{
 		cfg:       cfg,
 		Store:     st,
@@ -82,9 +87,11 @@ func NewWith(cfg Config, st *store.Store, box *crypto.Box) *App {
 		Bus:       bus,
 		QueryLog:  ql,
 		Collector: collector.New(fl, ql, st, bus, cfg.Log, cfg.CollectInterval),
+		Config:    cs,
+		syncKick:  kick,
 	}
 	a.server = api.New(api.Deps{
-		Log: cfg.Log, Store: st, Auth: a.Auth, Fleet: fl, Poller: a.Poller, QueryLog: ql, Bus: bus,
+		Log: cfg.Log, Store: st, Auth: a.Auth, Fleet: fl, Poller: a.Poller, QueryLog: ql, Config: cs, SyncKick: kick, Bus: bus,
 		WebFS: cfg.WebFS, DocsFS: cfg.DocsFS, Proxies: cfg.TrustedProxy,
 		Features: map[string]bool{},
 	})
@@ -95,6 +102,7 @@ func NewWith(cfg Config, st *store.Store, box *crypto.Box) *App {
 func (a *App) Start(ctx context.Context) {
 	go a.Poller.Run(ctx)
 	go a.Collector.Run(ctx)
+	go a.Config.RunChecks(ctx, 2*time.Minute, a.syncKick)
 	go func() {
 		t := time.NewTicker(time.Hour)
 		defer t.Stop()
