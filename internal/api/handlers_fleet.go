@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/hurseyc/guardtower/internal/auth"
+	"github.com/hurseyc/guardtower/internal/config"
 	"github.com/hurseyc/guardtower/internal/fleet"
 )
 
@@ -93,6 +94,9 @@ func (s *Server) handleDeleteInstance(w http.ResponseWriter, r *http.Request) {
 	if err := s.Fleet.DeleteInstance(r.Context(), id); err != nil {
 		s.fail(w, r, err)
 		return
+	}
+	if err := s.Config.DeleteScope(r.Context(), config.ScopeRef{Scope: config.ScopeInstance, ID: id}); err != nil {
+		s.log.Error("delete instance layers", "err", err)
 	}
 	s.audit(r, "instance.delete", inst.Name, map[string]any{"id": id})
 	writeJSON(w, 200, map[string]bool{"ok": true})
@@ -235,6 +239,10 @@ func (s *Server) handleDeleteGroup(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
+	if err := s.Config.DeleteScope(r.Context(), config.ScopeRef{Scope: config.ScopeGroup, ID: id}); err != nil {
+		s.log.Error("delete group layers", "err", err)
+	}
+	s.kickSync()
 	s.audit(r, "group.delete", "", map[string]any{"id": id})
 	writeJSON(w, 200, map[string]bool{"ok": true})
 }
@@ -276,6 +284,7 @@ func (s *Server) handleSetGroupMembers(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	s.audit(r, "group.members", g.Name, body)
+	s.kickSync()
 	g, _ = s.Fleet.GetGroup(r.Context(), id)
 	writeJSON(w, 200, g)
 }

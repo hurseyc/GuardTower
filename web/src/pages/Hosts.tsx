@@ -1,11 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Building2, HardDrive, Pencil, Plus, Server, Trash2 } from 'lucide-react'
 import { api, type Host, type HostKind, type Overview, type Site } from '@/lib/api'
-import { useSession } from '@/lib/session'
+import { useSession } from '@/lib/sessionContext'
 import { PageHeader } from '@/components/AppShell'
+import { useResilience } from '@/lib/resilience'
+import { ProxmoxCard } from '@/components/ProxmoxCard'
 import { Badge, Button, Card, CardHeader, ConfirmDialog, Dialog, EmptyState, Field, Input, Select, StatusDot, Textarea } from '@/components/ui'
+import { useOnChange } from '@/lib/useOnChange'
 
 const kinds: { value: HostKind; label: string }[] = [
   { value: 'proxmox', label: 'Proxmox node' },
@@ -21,6 +24,7 @@ const kindLabel = Object.fromEntries(kinds.map((k) => [k.value, k.label]))
 
 export function HostsPage() {
   const { can } = useSession()
+  const { data: res } = useResilience()
   const qc = useQueryClient()
   const { data } = useQuery({ queryKey: ['overview'], queryFn: () => api.get<Overview>('/overview') })
   const [edit, setEdit] = useState<{ open: boolean; host?: Host }>({ open: false })
@@ -81,6 +85,7 @@ export function HostsPage() {
           <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
             {hosts.map((h) => {
               const insts = instancesOn(h.id)
+              const spofGroups = (res?.spof_hosts[String(h.id)] ?? []).map((gid) => res?.groups.find((g) => g.group_id === gid)?.name).filter(Boolean)
               return (
                 <Card key={h.id} className="p-5">
                   <div className="flex items-start gap-3">
@@ -96,6 +101,11 @@ export function HostsPage() {
                       <div className="mt-2 flex flex-wrap gap-1">
                         {h.site_id ? <Badge>site: {siteName.get(h.site_id)}</Badge> : null}
                         {h.power ? <Badge>power: {h.power}</Badge> : null}
+                        {spofGroups.length > 0 && (
+                          <Badge tone="warn" title="If this host goes down, these groups lose all their DNS servers">
+                            only host of {spofGroups.join(', ')}
+                          </Badge>
+                        )}
                       </div>
                     </div>
                     {can('admin') && (
@@ -132,6 +142,7 @@ export function HostsPage() {
             <strong className="text-fg">Not assigned to a host:</strong> {unassigned.map((i) => i.name).join(', ')}. Edit an instance to set its host.
           </Card>
         )}
+        <ProxmoxCard admin={can('admin')} />
         <Card>
           <CardHeader title="Sites" description="Optional: physical locations (home, office, cabin). Used for site-level redundancy checks." />
           <div className="flex flex-wrap gap-2 px-5 pb-5">
@@ -173,9 +184,9 @@ export function HostsPage() {
 
 function HostDialog({ open, host, sites, onOpenChange, onSaved }: { open: boolean; host?: Host; sites: Site[]; onOpenChange: (v: boolean) => void; onSaved: () => void }) {
   const [f, setF] = useState<Omit<Host, 'id'>>({ name: '', kind: 'proxmox', address: '', power: '', notes: '', site_id: 0 })
-  useEffect(() => {
-    if (open) setF(host ? { ...host, site_id: host.site_id ?? 0 } : { name: '', kind: 'proxmox', address: '', power: '', notes: '', site_id: 0 })
-  }, [open, host])
+  useOnChange(open ? (host?.id ?? 'new') : null, (k) => {
+    if (k !== null) setF(host ? { ...host, site_id: host.site_id ?? 0 } : { name: '', kind: 'proxmox', address: '', power: '', notes: '', site_id: 0 })
+  })
   const save = useMutation({
     mutationFn: () => {
       const body = { name: f.name, kind: f.kind, address: f.address, power: f.power, notes: f.notes, site_id: Number(f.site_id) }
@@ -243,9 +254,9 @@ function HostDialog({ open, host, sites, onOpenChange, onSaved }: { open: boolea
 
 function SiteDialog({ open, site, onOpenChange, onSaved }: { open: boolean; site?: Site; onOpenChange: (v: boolean) => void; onSaved: () => void }) {
   const [name, setName] = useState('')
-  useEffect(() => {
-    if (open) setName(site?.name ?? '')
-  }, [open, site])
+  useOnChange(open ? (site?.id ?? 'new') : null, (k) => {
+    if (k !== null) setName(site?.name ?? '')
+  })
   const save = useMutation({
     mutationFn: () => (site ? api.put(`/sites/${site.id}`, { name }) : api.post('/sites', { name })),
     onSuccess: () => {

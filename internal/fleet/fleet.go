@@ -330,6 +330,19 @@ func (s *Service) SetInstanceGroup(ctx context.Context, id, groupID int64) error
 	return nil
 }
 
+// SetPlacement sets the host and runtime an instance runs on (used when
+// they are discovered, e.g. from Proxmox).
+func (s *Service) SetPlacement(ctx context.Context, id, hostID int64, runtime string) error {
+	res, err := s.st.DB.ExecContext(ctx, `UPDATE instances SET host_id = ?, runtime = ? WHERE id = ?`, store.NullInt(hostID), runtime, id)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 // DeleteInstance removes an instance (its stored logs are removed by cascade
 // or retention).
 func (s *Service) DeleteInstance(ctx context.Context, id int64) error {

@@ -15,9 +15,15 @@ linters:
         - (io.Closer).Close
         - (*database/sql.Rows).Close
         - (*database/sql.Tx).Rollback
+        - (*database/sql.Stmt).Close
         - (*database/sql.DB).Close
         - (*os.File).Close
         - (io/fs.File).Close
+        - (net.Conn).Close
+        - (net.Listener).Close
+        - (golang.org/x/crypto/ssh.Conn).Close
+        - (*golang.org/x/crypto/ssh.Session).Close
+        - (golang.org/x/crypto/ssh.Channel).Close
         - (*github.com/hurseyc/guardtower/internal/store.Store).Close
         - (*github.com/hurseyc/guardtower/internal/app.App).Close
     gosec:
@@ -33,7 +39,12 @@ linters:
     rules:
       - path: _test\.go
         linters: [gosec, noctx, bodyclose, unparam]
-      - path: (cmd/gtdev|internal/devfleet)/
+      # Query builders concatenate only fixed SQL fragments and "?" placeholders;
+      # every user-supplied value is passed as a bound argument.
+      - path: (internal/querylog|internal/family|internal/notify|internal/proxmox)/
+        linters: [gosec]
+        text: G202
+      - path: (cmd/gtdev|internal/devfleet|internal/upgrade/dockerfake)/
         linters: [gosec, noctx]
 formatters:
   enable: [gofmt, goimports]
