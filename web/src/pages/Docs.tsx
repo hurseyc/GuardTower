@@ -6,7 +6,8 @@ import { BookOpen, Search } from 'lucide-react'
 import { api, type DocPage } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { Card, Input, Skeleton } from '@/components/ui'
-import { Markdown, slugify } from '@/components/Markdown'
+import { Markdown } from '@/components/Markdown'
+import { slugify } from '@/lib/slugify'
 
 export function DocsPage() {
   const params = useParams()

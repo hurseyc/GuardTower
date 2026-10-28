@@ -224,3 +224,58 @@ func mustGet(t *testing.T, a *app.App, id int64) *fleetInstance {
 	}
 	return in
 }
+
+func TestConfigLayersAPI(t *testing.T) {
+	a, c := newTestServer(t)
+	var res struct {
+		CSRF string `json:"csrf_token"`
+	}
+	c.do("POST", "/api/v1/setup", map[string]string{"username": "admin", "password": "correct-horse-battery"}, &res)
+	c.csrf = res.CSRF
+
+	var schema []map[string]any
+	if code := c.do("GET", "/api/v1/config/schema", nil, &schema); code != 200 || len(schema) < 10 {
+		t.Fatalf("schema: %d, %d sections", code, len(schema))
+	}
+	// Valid base layer.
+	var saved map[string]any
+	if code := c.do("PUT", "/api/v1/config/layers/base/0/dns", map[string]any{"ratelimit": 25, "upstream_dns": []string{"https://dns.quad9.net/dns-query"}}, &saved); code != 200 {
+		t.Fatalf("put layer: %d", code)
+	}
+	// Invalid field values are rejected with a useful message.
+	var errBody map[string]string
+	if code := c.do("PUT", "/api/v1/config/layers/base/0/dns", map[string]any{"ratelimit": "lots"}, &errBody); code != 400 || errBody["error"] == "" {
+		t.Fatalf("invalid layer: %d %v", code, errBody)
+	}
+	if code := c.do("PUT", "/api/v1/config/layers/base/0/nonsense", map[string]any{"x": 1}, nil); code != 400 {
+		t.Fatalf("unknown section: %d", code)
+	}
+	if code := c.do("PUT", "/api/v1/config/layers/group/0/dns", map[string]any{"ratelimit": 1}, nil); code != 400 {
+		t.Fatalf("group without id: %d", code)
+	}
+	var layers map[string]map[string]any
+	c.do("GET", "/api/v1/config/layers?scope=base", nil, &layers)
+	if _, ok := layers["dns"]; !ok {
+		t.Fatalf("layer not stored: %v", layers)
+	}
+	// An empty document removes the layer.
+	c.do("PUT", "/api/v1/config/layers/base/0/dns", map[string]any{}, nil)
+	layers = nil
+	c.do("GET", "/api/v1/config/layers?scope=base", nil, &layers)
+	if _, ok := layers["dns"]; ok {
+		t.Fatal("layer not deleted")
+	}
+	// Viewers may read but not write.
+	if _, err := a.Auth.CreateUser(context.Background(), "viewer", "viewer-password", "viewer", false); err != nil {
+		t.Fatal(err)
+	}
+	c.do("POST", "/api/v1/auth/logout", nil, nil)
+	c.do("POST", "/api/v1/auth/login", map[string]string{"username": "viewer", "password": "viewer-password"}, &res)
+	c.csrf = res.CSRF
+	if code := c.do("GET", "/api/v1/config/layers?scope=base", nil, nil); code != 200 {
+		t.Fatalf("viewer read: %d", code)
+	}
+	if code := c.do("PUT", "/api/v1/config/layers/base/0/dns", map[string]any{"ratelimit": 1}, nil); code != 403 {
+		t.Fatalf("viewer write: %d", code)
+	}
+}

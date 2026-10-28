@@ -25,13 +25,17 @@ func (s *Server) audit(r *http.Request, action, target string, detail any) {
 }
 
 func (s *Server) handleMeta(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, 200, map[string]any{
+	m := map[string]any{
 		"name":     "GuardTower",
 		"version":  version.Version,
 		"commit":   version.Commit,
 		"date":     version.Date,
 		"features": s.Features,
-	})
+	}
+	if s.OIDC != nil {
+		m["sso"] = map[string]string{"label": s.OIDC.Cfg.Label, "url": "/api/v1/auth/oidc/login"}
+	}
+	writeJSON(w, 200, m)
 }
 
 func (s *Server) handleSetupStatus(w http.ResponseWriter, r *http.Request) {

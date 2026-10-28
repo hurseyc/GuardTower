@@ -1,18 +1,22 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { Command } from 'cmdk'
-import { CircleHelp, LogOut, Menu, Monitor, Moon, Search, Sun, X, KeyRound } from 'lucide-react'
+import { ArrowUpCircle, CircleHelp, FileCode2, KeyRound, LogOut, Menu, Monitor, Moon, Plus, Rocket, ScrollText, Search, Server, Sun, X } from 'lucide-react'
 import { api, type DocPage, type Overview } from '@/lib/api'
-import { useSession } from '@/lib/session'
+import { useSession } from '@/lib/sessionContext'
 import { navRoutes, docForPath } from '@/lib/routes'
-import { useServerEvents } from '@/lib/events'
+import { onServerEvent, useServerEvents } from '@/lib/events'
 import { cn } from '@/lib/utils'
 import { Kbd, Sheet, Skeleton } from './ui'
 import { Markdown } from './Markdown'
 import { Logo } from './Logo'
 import { ChangePasswordDialog } from './ChangePasswordDialog'
+import { ErrorBoundary } from './ErrorBoundary'
+import { UpdateBanner } from './UpdateBanner'
+import { useOnChange } from '@/lib/useOnChange'
 
 type Theme = 'light' | 'dark' | 'system'
 
@@ -47,8 +51,21 @@ export function AppShell() {
   const [pwOpen, setPwOpen] = useState(false)
   const [theme, setTheme] = useTheme()
   useServerEvents(!!user)
+  const qc = useQueryClient()
+  const seesFamily = !!user && (user.family_access || can('admin'))
+  const navigate = useNavigate()
+  // Live family alerts, only for people allowed to see Family DNS.
+  useEffect(() => {
+    if (!seesFamily) return
+    return onServerEvent((type, data) => {
+      if (type !== 'family.alert' || !data || typeof data !== 'object') return
+      const d = data as { title: string; body: string }
+      void qc.invalidateQueries({ queryKey: ['family'] })
+      toast.warning(d.title, { description: d.body, action: { label: 'View', onClick: () => void navigate('/family') } })
+    })
+  }, [seesFamily, qc, navigate])
 
-  useEffect(() => setMobileOpen(false), [loc.pathname])
+  useOnChange(loc.pathname, () => setMobileOpen(false))
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
@@ -63,7 +80,7 @@ export function AppShell() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  const visible = navRoutes.filter((r) => (!r.minRole || can(r.minRole)) && (!r.family || user?.family_access))
+  const visible = navRoutes.filter((r) => (!r.minRole || can(r.minRole)) && (!r.family || user?.family_access || can('admin')))
   const sections = useMemo(() => {
     const m = new Map<string, typeof visible>()
     for (const r of visible) m.set(r.section, [...(m.get(r.section) ?? []), r])
@@ -191,8 +208,11 @@ export function AppShell() {
             </DropdownMenu.Root>
           </div>
         </header>
-        <main className="min-h-0 flex-1 overflow-y-auto">
-          <Outlet />
+        {can('admin') && <UpdateBanner />}
+        <main id="main" tabIndex={0} className="min-h-0 flex-1 overflow-y-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
+          <ErrorBoundary resetKey={loc.pathname}>
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </div>
       <HelpDrawer open={helpOpen} onOpenChange={setHelpOpen} />
@@ -290,9 +310,25 @@ function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (
         </div>
         <Command.List className="max-h-[60vh] overflow-y-auto p-2">
           <Command.Empty className="px-3 py-6 text-center text-sm text-muted">No results.</Command.Empty>
+          <Command.Group heading="Actions" className="text-[10px] font-semibold uppercase tracking-wider text-faint [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1.5">
+            {[
+              { label: 'Add an instance', to: '/instances?add=1', icon: Plus, role: 'admin' as const },
+              { label: 'Review & apply pending changes', to: '/changes', icon: Rocket, role: 'operator' as const },
+              { label: 'Plan an AdGuard Home upgrade', to: '/upgrades', icon: ArrowUpCircle, role: 'operator' as const },
+              { label: 'Import or export settings (YAML)', to: '/config', icon: FileCode2, role: 'viewer' as const },
+              { label: 'Connect Proxmox', to: '/hosts', icon: Server, role: 'admin' as const },
+              { label: 'Search the query log', to: '/logs', icon: ScrollText, role: 'viewer' as const },
+            ]
+              .filter((a) => can(a.role))
+              .map((a) => (
+                <Command.Item key={a.label} value={`action ${a.label}`} onSelect={() => go(a.to)} className={cn(item, 'normal-case tracking-normal text-fg')}>
+                  <a.icon className="h-4 w-4 text-muted" /> {a.label}
+                </Command.Item>
+              ))}
+          </Command.Group>
           <Command.Group heading="Pages" className="text-[10px] font-semibold uppercase tracking-wider text-faint [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1.5">
             {navRoutes
-              .filter((r) => (!r.minRole || can(r.minRole)) && (!r.family || user?.family_access))
+              .filter((r) => (!r.minRole || can(r.minRole)) && (!r.family || user?.family_access || can('admin')))
               .map((r) => (
                 <Command.Item key={r.path} value={`page ${r.label}`} onSelect={() => go(r.path)} className={cn(item, 'normal-case tracking-normal text-fg')}>
                   <r.icon className="h-4 w-4 text-muted" /> {r.label}

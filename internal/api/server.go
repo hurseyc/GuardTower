@@ -12,23 +12,44 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/hurseyc/guardtower/internal/auth"
+	"github.com/hurseyc/guardtower/internal/config"
 	"github.com/hurseyc/guardtower/internal/events"
+	"github.com/hurseyc/guardtower/internal/family"
 	"github.com/hurseyc/guardtower/internal/fleet"
+	"github.com/hurseyc/guardtower/internal/notify"
+	"github.com/hurseyc/guardtower/internal/proxmox"
+	"github.com/hurseyc/guardtower/internal/querylog"
+	"github.com/hurseyc/guardtower/internal/resilience"
+	"github.com/hurseyc/guardtower/internal/rollout"
+	"github.com/hurseyc/guardtower/internal/selfupdate"
 	"github.com/hurseyc/guardtower/internal/store"
+	"github.com/hurseyc/guardtower/internal/upgrade"
 )
 
 // Deps are the services the API depends on.
 type Deps struct {
-	Log      *slog.Logger
-	Store    *store.Store
-	Auth     *auth.Service
-	Fleet    *fleet.Service
-	Poller   *fleet.Poller
-	Bus      *events.Bus
-	WebFS    fs.FS // built SPA (index.html at root); nil serves a placeholder
-	DocsFS   fs.FS // markdown docs
-	Proxies  []*net.IPNet
-	Features map[string]bool
+	Log        *slog.Logger
+	Store      *store.Store
+	Auth       *auth.Service
+	Fleet      *fleet.Service
+	Poller     *fleet.Poller
+	QueryLog   *querylog.Store
+	Config     *config.Service
+	Rollout    *rollout.Service
+	Upgrade    *upgrade.Service
+	Resilience *resilience.Service
+	Family     *family.Service
+	Notify     *notify.Service
+	SelfUpdate *selfupdate.Checker // nil disables the GuardTower update check
+	OIDC       *auth.OIDC          // nil when single sign-on isn't configured
+	Proxmox    *proxmox.Service
+	Bus        *events.Bus
+	WebFS      fs.FS // built SPA (index.html at root); nil serves a placeholder
+	DocsFS     fs.FS // markdown docs
+	Proxies    []*net.IPNet
+	Features   map[string]bool
+	// MetricsToken enables /metrics for scrapers sending it as a bearer token.
+	MetricsToken string
 }
 
 // Server is the HTTP handler.
@@ -47,6 +68,7 @@ func New(d Deps) *Server {
 
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, 200, map[string]string{"status": "ok"}) })
 	r.Get("/readyz", s.handleReady)
+	r.Get("/metrics", s.handleMetrics)
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Use(s.withSession)
@@ -54,6 +76,8 @@ func New(d Deps) *Server {
 		r.Get("/setup", s.handleSetupStatus)
 		r.Post("/setup", s.handleSetup)
 		r.Post("/auth/login", s.handleLogin)
+		r.Get("/auth/oidc/login", s.handleOIDCLogin)
+		r.Get("/auth/oidc/callback", s.handleOIDCCallback)
 		r.Get("/docs", s.handleDocsIndex)
 		r.Get("/docs/*", s.handleDocPage)
 
@@ -69,13 +93,59 @@ func New(d Deps) *Server {
 			r.Get("/instances/{id}", s.handleGetInstance)
 			r.Get("/groups", s.handleListGroups)
 			r.Get("/hosts", s.handleListHosts)
+			r.Get("/proxmox", s.handleListProxmox)
 			r.Get("/sites", s.handleListSites)
 			r.Get("/overview", s.handleOverview)
+			r.Get("/querylog", s.handleQueryLog)
+			r.Get("/stats/summary", s.handleStatsSummary)
+			r.Get("/stats/flows", s.handleStatsFlows)
+			r.Get("/collector", s.handleCollectorStates)
+			r.Get("/config/schema", s.handleConfigSchema)
+			r.Get("/config/layers", s.handleGetLayers)
+			r.Get("/instances/{id}/config", s.handleInstanceConfig)
+			r.Get("/sync", s.handleListSync)
+			r.Get("/rollouts", s.handleListRollouts)
+			r.Get("/rollouts/{id}", s.handleGetRollout)
+			r.Get("/instances/{id}/snapshots", s.handleListSnapshots)
+			r.Get("/snapshots/{sid}", s.handleGetSnapshot)
+			r.Get("/upgrades", s.handleUpgradeOverview)
+			r.Get("/updates/guardtower", s.handleSelfUpdate)
+			r.Get("/resilience", s.handleResilience)
+			r.Get("/config/yaml", s.handleExportYAML)
+			r.Post("/resilience/preview", s.handleResiliencePreview)
+			r.Get("/instances/{id}/upgrade-config", s.handleGetUpgradeConfig)
+
+			r.Route("/family", func(r chi.Router) {
+				r.Use(requireFamily)
+				r.Get("/overview", s.handleFamilyOverview)
+				r.Get("/detail", s.handleFamilyDetail)
+				r.Get("/events", s.handleFamilyEvents)
+				r.Post("/events/{id}/reveal", s.handleFamilyReveal)
+				r.Get("/people", s.handleFamilyPeople)
+				r.Post("/people", s.handleSavePerson)
+				r.Put("/people/{id}", s.handleSavePerson)
+				r.Delete("/people/{id}", s.handleDeletePerson)
+				r.Get("/clients", s.handleFamilyClients)
+				r.Put("/devices", s.handleAssignDevice)
+				r.Get("/lists", s.handleFamilyLists)
+				r.Put("/lists", s.handleSetListCategory)
+				r.Get("/settings", s.handleGetFamilySettings)
+				r.Put("/settings", s.handlePutFamilySettings)
+				r.With(requireRole(auth.RoleAdmin)).Post("/profile/{id}", s.handleFamilyProfile)
+			})
 
 			r.Group(func(r chi.Router) {
 				r.Use(requireRole(auth.RoleOperator))
 				r.Post("/instances/{id}/protection", s.handleSetProtection)
 				r.Post("/instances/{id}/refresh", s.handleRefreshInstance)
+				r.Post("/sync/check", s.handleCheckSync)
+				r.Post("/rollouts/plan", s.handlePlan)
+				r.Post("/rollouts", s.handleStartRollout)
+				r.Post("/instances/{id}/snapshots", s.handleTakeSnapshot)
+				r.Post("/snapshots/{sid}/restore", s.handleRestoreSnapshot)
+				r.Post("/upgrades/check", s.handleUpgradeCheck)
+				r.Post("/upgrades/plan", s.handleUpgradePlan)
+				r.Post("/upgrades", s.handleUpgradeStart)
 			})
 
 			r.Group(func(r chi.Router) {
@@ -87,7 +157,16 @@ func New(d Deps) *Server {
 				r.Post("/groups", s.handleSaveGroup)
 				r.Put("/groups/{id}", s.handleSaveGroup)
 				r.Delete("/groups/{id}", s.handleDeleteGroup)
+				r.Post("/proxmox", s.handleSaveProxmox)
+				r.Put("/proxmox/{id}", s.handleSaveProxmox)
+				r.Delete("/proxmox/{id}", s.handleDeleteProxmox)
+				r.Post("/proxmox/test", s.handleTestProxmox)
+				r.Post("/proxmox/{id}/sync", s.handleSyncProxmox)
 				r.Put("/groups/{id}/members", s.handleSetGroupMembers)
+				r.Put("/groups/{id}/upgrade-policy", s.handlePutUpgradePolicy)
+				r.Put("/instances/{id}/upgrade-config", s.handlePutUpgradeConfig)
+				r.Post("/instances/{id}/upgrade-config/test", s.handleTestUpgradeConfig)
+				r.Post("/instances/{id}/upgrade-config/pin", s.handlePinHostKey)
 				r.Post("/hosts", s.handleSaveHost)
 				r.Put("/hosts/{id}", s.handleSaveHost)
 				r.Delete("/hosts/{id}", s.handleDeleteHost)
@@ -99,6 +178,16 @@ func New(d Deps) *Server {
 				r.Put("/users/{id}", s.handleUpdateUser)
 				r.Delete("/users/{id}", s.handleDeleteUser)
 				r.Get("/audit", s.handleListAudit)
+				r.Get("/settings", s.handleGetSettings)
+				r.Get("/notify/targets", s.handleListTargets)
+				r.Post("/notify/targets", s.handleSaveTarget)
+				r.Put("/notify/targets/{id}", s.handleSaveTarget)
+				r.Delete("/notify/targets/{id}", s.handleDeleteTarget)
+				r.Post("/notify/targets/{id}/test", s.handleTestTarget)
+				r.Put("/config/layers/{scope}/{scopeID}/{section}", s.handlePutLayer)
+				r.Post("/config/yaml", s.handleImportYAML)
+				r.Post("/config/import", s.handleImportBaseline)
+				r.Put("/settings", s.handlePutSettings)
 			})
 		})
 		r.NotFound(func(w http.ResponseWriter, r *http.Request) { writeErr(w, 404, "no such API endpoint") })

@@ -1,14 +1,7 @@
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Link } from 'react-router'
-
-function slugify(text: string) {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .trim()
-    .replace(/\s+/g, '-')
-}
+import { slugify } from '@/lib/slugify'
 
 function textOf(children: React.ReactNode): string {
   if (typeof children === 'string' || typeof children === 'number') return String(children)
@@ -31,6 +24,8 @@ export function Markdown({ source, baseSlug, onNavigate }: { source: string; bas
         components={{
           h2: ({ children }) => <h2 id={slugify(textOf(children))}>{children}</h2>,
           h3: ({ children }) => <h3 id={slugify(textOf(children))}>{children}</h3>,
+          // Focusable so wide code blocks can be scrolled with the keyboard.
+          pre: ({ children }) => <pre tabIndex={0}>{children}</pre>,
           a: ({ href = '', children }) => {
             if (/^[a-z]+:/i.test(href)) {
               return (
@@ -66,4 +61,3 @@ function resolvePath(p: string): string {
   return out.join('/') || 'index'
 }
 
-export { slugify }

@@ -1,5 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
-import { useSession } from '@/lib/session'
+import { useSession } from '@/lib/sessionContext'
 import { AppShell } from '@/components/AppShell'
 import { Skeleton } from '@/components/ui'
 import { LoginPage, SetupPage } from '@/pages/Auth'
@@ -10,6 +10,14 @@ import { GroupsPage } from '@/pages/Groups'
 import { HostsPage } from '@/pages/Hosts'
 import { AuditPage, UsersPage } from '@/pages/Admin'
 import { DocsPage } from '@/pages/Docs'
+import { AnalyticsPage } from '@/pages/Analytics'
+import { QueryLogPage } from '@/pages/QueryLog'
+import { SettingsPage } from '@/pages/Settings'
+import { ConfigPage } from '@/pages/Config'
+import { ChangesPage } from '@/pages/Changes'
+import { UpgradesPage } from '@/pages/Upgrades'
+import { TopologyPage } from '@/pages/Topology'
+import { FamilyDevicesPage, FamilyPage, FamilyPersonPage, FamilySettingsPage } from '@/pages/Family'
 
 function Gate() {
   const { loading, needsSetup, user, can } = useSession()
@@ -42,8 +50,23 @@ function Gate() {
         <Route path="instances/:id" element={<InstanceDetailPage />} />
         <Route path="groups" element={<GroupsPage />} />
         <Route path="hosts" element={<HostsPage />} />
+        <Route path="topology" element={<TopologyPage />} />
+        <Route path="config" element={<ConfigPage />} />
+        <Route path="changes" element={<ChangesPage />} />
+        <Route path="upgrades" element={<UpgradesPage />} />
+        <Route path="analytics" element={<AnalyticsPage />} />
+        <Route path="logs" element={<QueryLogPage />} />
         {can('admin') && <Route path="users" element={<UsersPage />} />}
         {can('admin') && <Route path="audit" element={<AuditPage />} />}
+        {can('admin') && <Route path="settings" element={<SettingsPage />} />}
+        {(user?.family_access || can('admin')) && (
+          <>
+            <Route path="family" element={<FamilyPage />} />
+            <Route path="family/person/:id" element={<FamilyPersonPage />} />
+            <Route path="family/devices" element={<FamilyDevicesPage />} />
+            <Route path="family/settings" element={<FamilySettingsPage />} />
+          </>
+        )}
         <Route path="docs/*" element={<DocsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

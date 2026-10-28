@@ -1,15 +1,20 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Boxes, Pencil, Plus, Trash2, Users } from 'lucide-react'
 import { api, type Group, type Overview } from '@/lib/api'
-import { useSession } from '@/lib/session'
+import { useSession } from '@/lib/sessionContext'
 import { colorFor, palette } from '@/lib/utils'
+import { FindingList, ScoreIcon } from '@/components/Resilience'
+import { useResilience } from '@/lib/resilience'
+import { scoreLabel } from '@/lib/labels'
 import { PageHeader } from '@/components/AppShell'
 import { Badge, Button, Card, ConfirmDialog, Dialog, EmptyState, Field, Input, Skeleton, StatusDot } from '@/components/ui'
+import { useOnChange } from '@/lib/useOnChange'
 
 export function GroupsPage() {
+  const { data: res } = useResilience()
   const { can } = useSession()
   const qc = useQueryClient()
   const { data, isLoading } = useQuery({ queryKey: ['overview'], queryFn: () => api.get<Overview>('/overview') })
@@ -46,7 +51,7 @@ export function GroupsPage() {
       />
       <div className="space-y-6 p-6">
         {isLoading ? (
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <Skeleton className="h-40" />
             <Skeleton className="h-40" />
           </div>
@@ -66,10 +71,11 @@ export function GroupsPage() {
             />
           </Card>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
             {data?.groups.map((g) => {
               const color = colorFor(g.name, g.color)
               const online = g.instance_ids.filter((id) => instById.get(id)?.status?.online).length
+              const rep = res?.groups.find((x) => x.group_id === g.id)
               return (
                 <Card key={g.id} className="relative overflow-hidden">
                   <div className="absolute inset-x-0 top-0 h-1" style={{ background: color }} />
@@ -94,7 +100,19 @@ export function GroupsPage() {
                       <Badge tone={g.instance_ids.length === 0 ? 'neutral' : online === g.instance_ids.length ? 'ok' : 'warn'}>
                         {online}/{g.instance_ids.length} online
                       </Badge>
+                      {rep && g.instance_ids.length > 0 && (
+                        <span className="inline-flex items-center gap-1">
+                          <ScoreIcon score={rep.score} className="h-3.5 w-3.5" />
+                          {scoreLabel[rep.score]}
+                          {rep.hosts > 0 && ` · ${rep.hosts} host${rep.hosts === 1 ? '' : 's'}`}
+                        </span>
+                      )}
                     </div>
+                    {rep && rep.findings.length > 0 && (
+                      <div className="mt-3">
+                        <FindingList findings={rep.findings} />
+                      </div>
+                    )}
                     <div className="mt-3 space-y-1.5">
                       {g.instance_ids.length === 0 && <p className="text-sm text-faint">No instances in this group.</p>}
                       {g.instance_ids.map((id) => {
@@ -146,13 +164,13 @@ function GroupDialog({ open, group, onOpenChange, onSaved }: { open: boolean; gr
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [color, setColor] = useState('')
-  useEffect(() => {
-    if (open) {
+  useOnChange(open ? (group?.id ?? 'new') : null, (k) => {
+    if (k !== null) {
       setName(group?.name ?? '')
       setDescription(group?.description ?? '')
       setColor(group?.color ?? '')
     }
-  }, [open, group])
+  })
   const save = useMutation({
     mutationFn: () => (group ? api.put(`/groups/${group.id}`, { name, description, color }) : api.post('/groups', { name, description, color })),
     onSuccess: () => {
