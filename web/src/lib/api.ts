@@ -151,3 +151,77 @@ export interface DocPage {
   routes?: string[]
   body?: string
 }
+
+// ---- query log & analytics ----
+
+export type QueryStatus = 'allowed' | 'allowlisted' | 'blocked' | 'safebrowsing' | 'parental' | 'safesearch' | 'rewritten'
+
+export interface QueryRow {
+  id: number
+  instance_id: number
+  ts: number
+  client: string
+  client_name: string
+  client_id?: string
+  domain: string
+  qtype: string
+  status: QueryStatus
+  blocked: boolean
+  reason: string
+  filter_id?: number
+  rule?: string
+  service?: string
+  upstream?: string
+  elapsed_ms: number
+  cached: boolean
+  proto?: string
+  answer?: string
+}
+
+export interface QueryPage {
+  rows: QueryRow[]
+  next?: { ts: number; id: number }
+}
+
+export interface TopItem {
+  key: string
+  label?: string
+  count: number
+}
+
+export interface StatsSummary {
+  from: number
+  to: number
+  bucket_ms: number
+  totals: {
+    queries: number
+    blocked: number
+    cached: number
+    avg_elapsed_ms: number
+    blocked_pct: number
+    cached_pct: number
+    clients: number
+    from_rollups: boolean
+  }
+  series: { t: number; queries: number; blocked: number }[]
+  instances: { instance_id: number; queries: number; blocked: number; avg_elapsed_ms: number }[]
+  top_domains: TopItem[]
+  top_blocked: TopItem[]
+  top_clients: TopItem[]
+  statuses: TopItem[]
+  heatmap: number[][]
+}
+
+export interface CollectorState {
+  instance_id: number
+  last_ts: number
+  last_run_at: number
+  last_error: string
+  rows_total: number
+}
+
+export interface SettingsResponse {
+  settings: Record<string, string>
+  database_bytes: number
+  querylog_rows: number
+}

@@ -10,6 +10,9 @@ import { GroupsPage } from '@/pages/Groups'
 import { HostsPage } from '@/pages/Hosts'
 import { AuditPage, UsersPage } from '@/pages/Admin'
 import { DocsPage } from '@/pages/Docs'
+import { AnalyticsPage } from '@/pages/Analytics'
+import { QueryLogPage } from '@/pages/QueryLog'
+import { SettingsPage } from '@/pages/Settings'
 
 function Gate() {
   const { loading, needsSetup, user, can } = useSession()
@@ -42,8 +45,11 @@ function Gate() {
         <Route path="instances/:id" element={<InstanceDetailPage />} />
         <Route path="groups" element={<GroupsPage />} />
         <Route path="hosts" element={<HostsPage />} />
+        <Route path="analytics" element={<AnalyticsPage />} />
+        <Route path="logs" element={<QueryLogPage />} />
         {can('admin') && <Route path="users" element={<UsersPage />} />}
         {can('admin') && <Route path="audit" element={<AuditPage />} />}
+        {can('admin') && <Route path="settings" element={<SettingsPage />} />}
         <Route path="docs/*" element={<DocsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

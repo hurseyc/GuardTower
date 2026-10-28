@@ -71,3 +71,22 @@ test.describe.serial('first run and fleet setup', () => {
     await expect(page.getByText('invalid username or password')).toBeVisible()
   })
 })
+
+test.describe.serial('query log and analytics', () => {
+  test('queries sent to an instance appear in the query log and analytics', async ({ page }) => {
+    // Generate a few real DNS queries against agh-1 via the dev tool.
+    const { execSync } = await import('node:child_process')
+    execSync('go run ./cmd/gtdev traffic -n 2 -duration 4s -qps 20', { cwd: '..', stdio: 'ignore' })
+    await signIn(page)
+    await page.getByRole('link', { name: 'Query log' }).click()
+    await expect(page.getByRole('heading', { name: 'Query log' })).toBeVisible()
+    // Collection runs every 10 s; rows appear live.
+    await expect(page.locator('tbody tr').first()).toBeVisible({ timeout: 30_000 })
+    await page.getByLabel('Domain').fill('google.com')
+    await page.getByRole('button', { name: 'Search', exact: true }).click()
+    await expect(page).toHaveURL(/domain=google\.com/)
+    await page.getByRole('link', { name: 'Analytics' }).click()
+    await expect(page.getByText('DNS queries')).toBeVisible()
+    await expect(page.getByText('Traffic by instance')).toBeVisible()
+  })
+})
