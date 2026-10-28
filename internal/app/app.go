@@ -21,6 +21,7 @@ import (
 	"github.com/hurseyc/guardtower/internal/querylog"
 	"github.com/hurseyc/guardtower/internal/resilience"
 	"github.com/hurseyc/guardtower/internal/rollout"
+	"github.com/hurseyc/guardtower/internal/selfupdate"
 	"github.com/hurseyc/guardtower/internal/store"
 	"github.com/hurseyc/guardtower/internal/upgrade"
 )
@@ -42,21 +43,22 @@ type Config struct {
 
 // App holds the running services.
 type App struct {
-	cfg       Config
-	Store     *store.Store
-	Box       *crypto.Box
-	Auth      *auth.Service
-	Fleet     *fleet.Service
-	Poller    *fleet.Poller
-	QueryLog  *querylog.Store
-	Collector *collector.Collector
-	Config    *config.Service
-	Rollout   *rollout.Service
-	Upgrade   *upgrade.Service
-	Family    *family.Service
-	Notify    *notify.Service
-	Bus       *events.Bus
-	server    *api.Server
+	cfg        Config
+	Store      *store.Store
+	Box        *crypto.Box
+	Auth       *auth.Service
+	Fleet      *fleet.Service
+	Poller     *fleet.Poller
+	QueryLog   *querylog.Store
+	Collector  *collector.Collector
+	Config     *config.Service
+	Rollout    *rollout.Service
+	Upgrade    *upgrade.Service
+	SelfUpdate *selfupdate.Checker
+	Family     *family.Service
+	Notify     *notify.Service
+	Bus        *events.Bus
+	server     *api.Server
 }
 
 // New opens storage and constructs every service.
@@ -101,9 +103,10 @@ func NewWith(cfg Config, st *store.Store, box *crypto.Box) *App {
 	a.Upgrade = upgrade.New(st, fl, box, a.Rollout, bus, cfg.Log)
 	a.Upgrade.OnChanged = a.Poller.Kick
 	a.Notify = notify.New(st, box)
+	a.SelfUpdate = selfupdate.New(a.Upgrade.Releases.Enabled)
 	a.Family = family.New(st, fl, bus, a.Notify, cfg.Log)
 	a.server = api.New(api.Deps{
-		Log: cfg.Log, Store: st, Auth: a.Auth, Fleet: fl, Poller: a.Poller, QueryLog: ql, Config: cs, Rollout: a.Rollout, Upgrade: a.Upgrade, Resilience: resilience.New(fl), Family: a.Family, Notify: a.Notify, Bus: bus,
+		Log: cfg.Log, Store: st, Auth: a.Auth, Fleet: fl, Poller: a.Poller, QueryLog: ql, Config: cs, Rollout: a.Rollout, Upgrade: a.Upgrade, Resilience: resilience.New(fl), Family: a.Family, Notify: a.Notify, SelfUpdate: a.SelfUpdate, Bus: bus,
 		WebFS: cfg.WebFS, DocsFS: cfg.DocsFS, Proxies: cfg.TrustedProxy,
 		Features: map[string]bool{}, MetricsToken: cfg.MetricsToken,
 	})
@@ -117,6 +120,7 @@ func (a *App) Start(ctx context.Context) {
 	go a.Collector.Run(ctx)
 	go a.Config.RunChecks(ctx, 2*time.Minute)
 	go a.Upgrade.Run(ctx)
+	go a.SelfUpdate.Run(ctx)
 	go a.Family.Run(ctx, 30*time.Second)
 	go func() {
 		t := time.NewTicker(time.Hour)

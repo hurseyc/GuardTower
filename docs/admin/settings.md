@@ -22,7 +22,7 @@ New installs start in observe mode so you can check what GuardTower sees before 
 
 | Setting | Key | Default | What it controls |
 |---|---|---|---|
-| Check for AdGuard Home releases | `upgrades.check_releases` | on | Every 6 hours, GuardTower asks GitHub (`api.github.com`) for the list of AdGuard Home releases, so the [Upgrades](../operation/upgrades.md) page knows the latest version. Turn it off for air-gapped installs; instances whose built-in updater offers a version can still be upgraded. |
+| Check for releases | `upgrades.check_releases` | on | Every 6 hours, GuardTower asks GitHub (`api.github.com`) for the list of AdGuard Home releases, so the [Upgrades](../operation/upgrades.md) page knows the latest version, and every 12 hours whether a newer GuardTower exists ([Updating GuardTower](updating.md)). Turn it off for air-gapped installs; instances whose built-in updater offers a version can still be upgraded. |
 
 ## Family DNS
 

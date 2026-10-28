@@ -75,6 +75,29 @@ If an instance's AdGuard Home version doesn't have a setting (for example, *Use 
 
 When the differences look right, open [Review & apply](changes.md) to preview and roll them out, canary first, with automatic rollback.
 
+## Keeping settings in a file (YAML export & import)
+
+Every layer can be saved as one YAML file, to keep in git, review in a pull request or copy to another GuardTower.
+
+- **Export YAML** (Configuration page) downloads all layers: `base`, then `groups` and `instances` by name. Each section uses the same `{add, remove}` and `{upsert, remove}` form as the editor.
+- **Import YAML** (admins) uploads or pastes a file and shows a **preview** first: which layers would be created, updated or deleted. Nothing changes until you confirm.
+  - Layers in the file replace the stored layer for the same level and section. Layers the file doesn't mention are kept, unless you tick **Delete layers missing from the file**.
+  - Groups and instances are matched by **name** and must already exist. If anything in the file is wrong (an unknown section or group, an invalid value), nothing is imported and every problem is listed.
+  - An import only changes *desired* settings, like saving in the editor. Use [Review & apply](changes.md) to roll it out.
+
+```yaml
+version: 1
+base:
+  dns:
+    upstream_dns: { add: ["https://dns.quad9.net/dns-query"] }
+groups:
+  Kids VLAN:
+    parental:
+      enabled: true
+```
+
+The same works from scripts: `GET /api/v1/config/yaml` exports, and `POST /api/v1/config/yaml?dry_run=1` (add `&prune=1` to delete missing layers) previews an import of the request body. Drop `dry_run` to apply. Imports are recorded in the [audit log](../admin/audit-log.md).
+
 ## Permissions
 
-Viewers and operators can see the configuration. Only admins can change layers or import baselines.
+Viewers and operators can see and export the configuration. Only admins can change layers, import baselines or import YAML.

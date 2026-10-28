@@ -20,6 +20,7 @@ import (
 	"github.com/hurseyc/guardtower/internal/querylog"
 	"github.com/hurseyc/guardtower/internal/resilience"
 	"github.com/hurseyc/guardtower/internal/rollout"
+	"github.com/hurseyc/guardtower/internal/selfupdate"
 	"github.com/hurseyc/guardtower/internal/store"
 	"github.com/hurseyc/guardtower/internal/upgrade"
 )
@@ -38,6 +39,7 @@ type Deps struct {
 	Resilience *resilience.Service
 	Family     *family.Service
 	Notify     *notify.Service
+	SelfUpdate *selfupdate.Checker // nil disables the GuardTower update check
 	Bus        *events.Bus
 	WebFS      fs.FS // built SPA (index.html at root); nil serves a placeholder
 	DocsFS     fs.FS // markdown docs
@@ -101,7 +103,9 @@ func New(d Deps) *Server {
 			r.Get("/instances/{id}/snapshots", s.handleListSnapshots)
 			r.Get("/snapshots/{sid}", s.handleGetSnapshot)
 			r.Get("/upgrades", s.handleUpgradeOverview)
+			r.Get("/updates/guardtower", s.handleSelfUpdate)
 			r.Get("/resilience", s.handleResilience)
+			r.Get("/config/yaml", s.handleExportYAML)
 			r.Post("/resilience/preview", s.handleResiliencePreview)
 			r.Get("/instances/{id}/upgrade-config", s.handleGetUpgradeConfig)
 
@@ -170,6 +174,7 @@ func New(d Deps) *Server {
 				r.Delete("/notify/targets/{id}", s.handleDeleteTarget)
 				r.Post("/notify/targets/{id}/test", s.handleTestTarget)
 				r.Put("/config/layers/{scope}/{scopeID}/{section}", s.handlePutLayer)
+				r.Post("/config/yaml", s.handleImportYAML)
 				r.Post("/config/import", s.handleImportBaseline)
 				r.Put("/settings", s.handlePutSettings)
 			})
