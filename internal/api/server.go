@@ -14,7 +14,9 @@ import (
 	"github.com/hurseyc/guardtower/internal/auth"
 	"github.com/hurseyc/guardtower/internal/config"
 	"github.com/hurseyc/guardtower/internal/events"
+	"github.com/hurseyc/guardtower/internal/family"
 	"github.com/hurseyc/guardtower/internal/fleet"
+	"github.com/hurseyc/guardtower/internal/notify"
 	"github.com/hurseyc/guardtower/internal/querylog"
 	"github.com/hurseyc/guardtower/internal/resilience"
 	"github.com/hurseyc/guardtower/internal/rollout"
@@ -34,6 +36,8 @@ type Deps struct {
 	Rollout    *rollout.Service
 	Upgrade    *upgrade.Service
 	Resilience *resilience.Service
+	Family     *family.Service
+	Notify     *notify.Service
 	Bus        *events.Bus
 	WebFS      fs.FS // built SPA (index.html at root); nil serves a placeholder
 	DocsFS     fs.FS // markdown docs
@@ -98,6 +102,25 @@ func New(d Deps) *Server {
 			r.Post("/resilience/preview", s.handleResiliencePreview)
 			r.Get("/instances/{id}/upgrade-config", s.handleGetUpgradeConfig)
 
+			r.Route("/family", func(r chi.Router) {
+				r.Use(requireFamily)
+				r.Get("/overview", s.handleFamilyOverview)
+				r.Get("/detail", s.handleFamilyDetail)
+				r.Get("/events", s.handleFamilyEvents)
+				r.Post("/events/{id}/reveal", s.handleFamilyReveal)
+				r.Get("/people", s.handleFamilyPeople)
+				r.Post("/people", s.handleSavePerson)
+				r.Put("/people/{id}", s.handleSavePerson)
+				r.Delete("/people/{id}", s.handleDeletePerson)
+				r.Get("/clients", s.handleFamilyClients)
+				r.Put("/devices", s.handleAssignDevice)
+				r.Get("/lists", s.handleFamilyLists)
+				r.Put("/lists", s.handleSetListCategory)
+				r.Get("/settings", s.handleGetFamilySettings)
+				r.Put("/settings", s.handlePutFamilySettings)
+				r.With(requireRole(auth.RoleAdmin)).Post("/profile/{id}", s.handleFamilyProfile)
+			})
+
 			r.Group(func(r chi.Router) {
 				r.Use(requireRole(auth.RoleOperator))
 				r.Post("/instances/{id}/protection", s.handleSetProtection)
@@ -138,6 +161,11 @@ func New(d Deps) *Server {
 				r.Delete("/users/{id}", s.handleDeleteUser)
 				r.Get("/audit", s.handleListAudit)
 				r.Get("/settings", s.handleGetSettings)
+				r.Get("/notify/targets", s.handleListTargets)
+				r.Post("/notify/targets", s.handleSaveTarget)
+				r.Put("/notify/targets/{id}", s.handleSaveTarget)
+				r.Delete("/notify/targets/{id}", s.handleDeleteTarget)
+				r.Post("/notify/targets/{id}/test", s.handleTestTarget)
 				r.Put("/config/layers/{scope}/{scopeID}/{section}", s.handlePutLayer)
 				r.Post("/config/import", s.handleImportBaseline)
 				r.Put("/settings", s.handlePutSettings)

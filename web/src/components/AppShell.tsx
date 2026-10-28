@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { Command } from 'cmdk'
 import { CircleHelp, LogOut, Menu, Monitor, Moon, Search, Sun, X, KeyRound } from 'lucide-react'
 import { api, type DocPage, type Overview } from '@/lib/api'
 import { useSession } from '@/lib/session'
 import { navRoutes, docForPath } from '@/lib/routes'
-import { useServerEvents } from '@/lib/events'
+import { onServerEvent, useServerEvents } from '@/lib/events'
 import { cn } from '@/lib/utils'
 import { Kbd, Sheet, Skeleton } from './ui'
 import { Markdown } from './Markdown'
@@ -48,6 +49,19 @@ export function AppShell() {
   const [pwOpen, setPwOpen] = useState(false)
   const [theme, setTheme] = useTheme()
   useServerEvents(!!user)
+  const qc = useQueryClient()
+  const seesFamily = !!user && (user.family_access || can('admin'))
+  const navigate = useNavigate()
+  // Live family alerts, only for people allowed to see Family DNS.
+  useEffect(() => {
+    if (!seesFamily) return
+    return onServerEvent((type, data) => {
+      if (type !== 'family.alert' || !data || typeof data !== 'object') return
+      const d = data as { title: string; body: string }
+      void qc.invalidateQueries({ queryKey: ['family'] })
+      toast.warning(d.title, { description: d.body, action: { label: 'View', onClick: () => void navigate('/family') } })
+    })
+  }, [seesFamily, qc, navigate])
 
   useEffect(() => setMobileOpen(false), [loc.pathname])
   useEffect(() => {
@@ -64,7 +78,7 @@ export function AppShell() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  const visible = navRoutes.filter((r) => (!r.minRole || can(r.minRole)) && (!r.family || user?.family_access))
+  const visible = navRoutes.filter((r) => (!r.minRole || can(r.minRole)) && (!r.family || user?.family_access || can('admin')))
   const sections = useMemo(() => {
     const m = new Map<string, typeof visible>()
     for (const r of visible) m.set(r.section, [...(m.get(r.section) ?? []), r])
@@ -295,7 +309,7 @@ function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (
           <Command.Empty className="px-3 py-6 text-center text-sm text-muted">No results.</Command.Empty>
           <Command.Group heading="Pages" className="text-[10px] font-semibold uppercase tracking-wider text-faint [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1.5">
             {navRoutes
-              .filter((r) => (!r.minRole || can(r.minRole)) && (!r.family || user?.family_access))
+              .filter((r) => (!r.minRole || can(r.minRole)) && (!r.family || user?.family_access || can('admin')))
               .map((r) => (
                 <Command.Item key={r.path} value={`page ${r.label}`} onSelect={() => go(r.path)} className={cn(item, 'normal-case tracking-normal text-fg')}>
                   <r.icon className="h-4 w-4 text-muted" /> {r.label}

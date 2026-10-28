@@ -2,7 +2,7 @@
 title: Settings
 section: Admin
 order: 25
-summary: Observe mode, upgrade checks, data retention and collection health.
+summary: Observe mode, upgrade checks, Family DNS, notifications, data retention and collection health.
 routes: [/settings]
 ---
 
@@ -23,6 +23,19 @@ New installs start in observe mode so you can check what GuardTower sees before 
 | Setting | Key | Default | What it controls |
 |---|---|---|---|
 | Check for AdGuard Home releases | `upgrades.check_releases` | on | Every 6 hours, GuardTower asks GitHub (`api.github.com`) for the list of AdGuard Home releases, so the [Upgrades](../operation/upgrades.md) page knows the latest version. Turn it off for air-gapped installs; instances whose built-in updater offers a version can still be upgraded. |
+
+## Family DNS
+
+These are changed on the **Family DNS → Settings** page by admins and users with family access. See [Family DNS](../operation/family.md).
+
+| Setting | Key | Default | What it controls |
+|---|---|---|---|
+| Bedtime | `family.bedtime` | `22:00-06:00` | Attempts in this window are flagged as *during bedtime* and highlighted on the heatmap. Empty = no bedtime. |
+| Mask domains | `family.mask_domains` | on | Show adult and gambling domains as `p***hub.com` until someone clicks **Reveal** (each reveal is audited). |
+| Alerts | `family.alerts` | `adult` | `off`, `adult` (adult-site attempts), or `all` (adult, gambling and VPN/private-DNS attempts). Sent to every [notification target](notifications.md) marked for family alerts. |
+| Quiet hours | `family.quiet_hours` | none | No push alerts in this window, e.g. `07:00-08:00`. Attempts are still recorded. |
+| Weekly digest | `family.digest` | `sun 18:00` | When to send the weekly family summary, or `off`. |
+| Keep family history | `retention.family_days` | 365 days | How long attempts are kept (7–3650). Independent of raw query-log retention. |
 
 ## Data retention
 

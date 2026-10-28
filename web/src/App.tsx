@@ -17,6 +17,7 @@ import { ConfigPage } from '@/pages/Config'
 import { ChangesPage } from '@/pages/Changes'
 import { UpgradesPage } from '@/pages/Upgrades'
 import { TopologyPage } from '@/pages/Topology'
+import { FamilyDevicesPage, FamilyPage, FamilyPersonPage, FamilySettingsPage } from '@/pages/Family'
 
 function Gate() {
   const { loading, needsSetup, user, can } = useSession()
@@ -58,6 +59,14 @@ function Gate() {
         {can('admin') && <Route path="users" element={<UsersPage />} />}
         {can('admin') && <Route path="audit" element={<AuditPage />} />}
         {can('admin') && <Route path="settings" element={<SettingsPage />} />}
+        {(user?.family_access || can('admin')) && (
+          <>
+            <Route path="family" element={<FamilyPage />} />
+            <Route path="family/person/:id" element={<FamilyPersonPage />} />
+            <Route path="family/devices" element={<FamilyDevicesPage />} />
+            <Route path="family/settings" element={<FamilySettingsPage />} />
+          </>
+        )}
         <Route path="docs/*" element={<DocsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
