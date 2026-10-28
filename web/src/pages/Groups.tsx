@@ -51,7 +51,7 @@ export function GroupsPage() {
       />
       <div className="space-y-6 p-6">
         {isLoading ? (
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <Skeleton className="h-40" />
             <Skeleton className="h-40" />
           </div>
@@ -71,7 +71,7 @@ export function GroupsPage() {
             />
           </Card>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
             {data?.groups.map((g) => {
               const color = colorFor(g.name, g.color)
               const online = g.instance_ids.filter((id) => instById.get(id)?.status?.online).length

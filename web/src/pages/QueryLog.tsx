@@ -186,10 +186,10 @@ export function QueryLogPage() {
                     <Th className="w-8" />
                     <Th>Time</Th>
                     <Th>Domain</Th>
-                    <Th>Outcome</Th>
-                    <Th>Client</Th>
-                    <Th>Instance</Th>
-                    <Th className="text-right">Response</Th>
+                    <Th className="hidden sm:table-cell">Outcome</Th>
+                    <Th className="hidden md:table-cell">Client</Th>
+                    <Th className="hidden lg:table-cell">Instance</Th>
+                    <Th className="hidden text-right sm:table-cell">Response</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -208,30 +208,39 @@ export function QueryLogPage() {
                           </Td>
                           <Td className="py-2 max-w-md">
                             <div className="truncate font-mono text-[13px]">{r.domain}</div>
-                            <div className="text-[11px] text-faint">{r.qtype}</div>
+                            <div className="flex items-center gap-2 text-[11px] text-faint">
+                              {r.qtype}
+                              <span className="sm:hidden">
+                                <StatusBadge status={r.status} />
+                              </span>
+                            </div>
                           </Td>
-                          <Td>
+                          <Td className="hidden sm:table-cell">
                             <StatusBadge status={r.status} />
                           </Td>
-                          <Td className="py-2 text-sm">
+                          <Td className="hidden py-2 text-sm md:table-cell">
                             <div className="truncate">{r.client_name || r.client}</div>
                             {r.client_name && <div className="font-mono text-[11px] text-faint">{r.client}</div>}
                           </Td>
-                          <Td className="py-2 text-sm">
+                          <Td className="hidden py-2 text-sm lg:table-cell">
                             <span className="inline-flex items-center gap-1.5">
                               {g && <span className="h-2 w-2 rounded-full" style={{ background: colorFor(g.name, g.color) }} title={g.name} />}
                               {inst?.name ?? `#${r.instance_id}`}
                             </span>
                           </Td>
-                          <Td className="py-2 whitespace-nowrap text-right text-xs tabular-nums text-muted">
+                          <Td className="hidden py-2 whitespace-nowrap text-right text-xs tabular-nums text-muted sm:table-cell">
                             {r.elapsed_ms.toFixed(1)} ms{r.cached && <Badge className="ml-1.5">cached</Badge>}
                           </Td>
                         </tr>
                         {open && (
                           <tr className="bg-subtle/60">
-                            <td colSpan={7} className="border-b border-border px-12 py-3">
+                            <td colSpan={7} className="border-b border-border px-4 py-3 sm:px-12">
                               <dl className="grid gap-x-8 gap-y-2 text-xs sm:grid-cols-3">
                                 <Detail label="When">{fmtDateTime(r.ts)} ({timeAgo(r.ts)})</Detail>
+                                {/* Columns hidden on small screens. */}
+                                <Detail label="Client" className="md:hidden">{r.client_name ? `${r.client_name} (${r.client})` : r.client}</Detail>
+                                <Detail label="Instance" className="lg:hidden">{inst?.name ?? `#${r.instance_id}`}</Detail>
+                                <Detail label="Response" className="sm:hidden">{r.elapsed_ms.toFixed(1)} ms{r.cached ? ', cached' : ''}</Detail>
                                 <Detail label="AdGuard Home reason" mono>{r.reason || '—'}</Detail>
                                 <Detail label="Protocol">{r.proto || 'dns'}</Detail>
                                 {r.rule && <Detail label="Matched rule" mono>{r.rule}</Detail>}
@@ -241,7 +250,7 @@ export function QueryLogPage() {
                                 {r.answer && <Detail label="Answer" mono>{r.answer}</Detail>}
                                 {r.client_id && <Detail label="ClientID" mono>{r.client_id}</Detail>}
                               </dl>
-                              <div className="mt-3 flex gap-2">
+                              <div className="mt-3 flex flex-wrap gap-2">
                                 <Button size="sm" variant="outline" onClick={() => { setSearch(r.domain); setAnywhere(false); setParam('domain', r.domain) }}>
                                   Show all queries for this domain
                                 </Button>
@@ -276,9 +285,9 @@ export function QueryLogPage() {
   )
 }
 
-function Detail({ label, children, mono }: { label: string; children: React.ReactNode; mono?: boolean }) {
+function Detail({ label, children, mono, className }: { label: string; children: React.ReactNode; mono?: boolean; className?: string }) {
   return (
-    <div className="min-w-0">
+    <div className={cn('min-w-0', className)}>
       <dt className="text-faint">{label}</dt>
       <dd className={cn('mt-0.5 break-all text-fg', mono && 'font-mono')}>{children}</dd>
     </div>

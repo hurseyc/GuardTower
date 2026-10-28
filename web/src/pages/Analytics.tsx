@@ -154,7 +154,7 @@ export function AnalyticsPage() {
                     <TimeSeriesChart series={series} bucketMs={data.bucket_ms} />
                   </div>
                 </Card>
-                <div className="grid gap-6 xl:grid-cols-2">
+                <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
                   <Card>
                     <CardHeader title="Traffic by instance" description="Share of all queries handled by each instance" />
                     <div className="px-3 pb-4">
@@ -180,7 +180,7 @@ export function AnalyticsPage() {
                     </div>
                   </Card>
                 </div>
-                <div className="grid gap-6 xl:grid-cols-5">
+                <div className="grid grid-cols-1 gap-6 xl:grid-cols-5">
                   <Card className="xl:col-span-3">
                     <CardHeader title="Traffic share" description="Each block is an instance, sized by queries and grouped by settings group. Click one to focus it." />
                     <div className="px-3 pb-4">
@@ -217,7 +217,7 @@ export function AnalyticsPage() {
                     </div>
                   </Card>
                 )}
-                <div className="grid gap-6 xl:grid-cols-3">
+                <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
                   <Card>
                     <CardHeader title="Top queried domains" />
                     <div className="px-3 pb-4">
@@ -241,7 +241,7 @@ export function AnalyticsPage() {
                     </div>
                   </Card>
                 </div>
-                <div className="grid gap-6 xl:grid-cols-3">
+                <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
                   <Card>
                     <CardHeader title="Outcome" description="What happened to each query" />
                     <div className="space-y-2 px-5 pb-5">

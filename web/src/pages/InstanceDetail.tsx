@@ -92,7 +92,7 @@ export function InstanceDetailPage() {
           </>
         }
       />
-      <div className="grid gap-6 p-6 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 p-6 xl:grid-cols-3">
         <Card className="xl:col-span-2">
           <CardHeader title="Connection" />
           <dl className="grid gap-x-6 gap-y-4 px-5 pb-5 text-sm sm:grid-cols-2">

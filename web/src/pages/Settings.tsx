@@ -55,7 +55,7 @@ export function SettingsPage() {
   return (
     <>
       <PageHeader title="Settings" description="Safety mode, notifications, data retention and collection health." />
-      <div className="grid gap-6 p-6 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 p-6 xl:grid-cols-3">
         <Card className="xl:col-span-3">
           <CardHeader
             title="Observe mode"

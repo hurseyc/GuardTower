@@ -358,7 +358,8 @@ export function Kbd({ children }: { children: React.ReactNode }) {
 
 export function Table({ className, ...props }: React.TableHTMLAttributes<HTMLTableElement>) {
   return (
-    <div className="overflow-x-auto">
+    // Focusable so a table that scrolls sideways (on a phone) can be scrolled with the keyboard.
+    <div className="relative overflow-x-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring" tabIndex={0}>
       <table className={cn('w-full text-sm', className)} {...props} />
     </div>
   )

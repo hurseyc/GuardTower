@@ -128,10 +128,10 @@ export function InstancesPage() {
                 <tr>
                   <Th>Instance</Th>
                   <Th>Group</Th>
-                  <Th>Host</Th>
-                  <Th>Version</Th>
+                  <Th className="hidden md:table-cell">Host</Th>
+                  <Th className="hidden md:table-cell">Version</Th>
                   <Th>Status</Th>
-                  <Th>Settings</Th>
+                  <Th className="hidden lg:table-cell">Settings</Th>
                   <Th className="text-right">Actions</Th>
                 </tr>
               </thead>
@@ -167,8 +167,8 @@ export function InstancesPage() {
                           <span className="text-faint">—</span>
                         )}
                       </Td>
-                      <Td className="text-sm">{h ? h.name : <span className="text-faint">—</span>}</Td>
-                      <Td className="font-mono text-xs">{i.status?.version || '—'}</Td>
+                      <Td className="hidden text-sm md:table-cell">{h ? h.name : <span className="text-faint">—</span>}</Td>
+                      <Td className="hidden font-mono text-xs md:table-cell">{i.status?.version || '—'}</Td>
                       <Td>
                         {i.status?.online ? (
                           <span className="text-xs text-muted">
@@ -180,7 +180,7 @@ export function InstancesPage() {
                           </Tip>
                         )}
                       </Td>
-                      <Td>
+                      <Td className="hidden lg:table-cell">
                         {(() => {
                           const s = syncById.get(i.id)
                           if (!s) return <span className="text-xs text-faint">not managed</span>

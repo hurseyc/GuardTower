@@ -199,7 +199,7 @@ export function FamilyPage() {
                 />
               </Card>
             ) : (
-              <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
                 {data.people.map((p) => (
                   <PersonCard key={p.person_id} p={p} days={days} />
                 ))}
@@ -321,7 +321,7 @@ export function FamilyPersonPage() {
                 </div>
               </Card>
             )}
-            <div className="grid gap-6 xl:grid-cols-3">
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
               <Card className="xl:col-span-2">
                 <CardHeader title="When attempts happen" description={`Attempts by day of week and hour${data.late_night ? ` · ${data.late_night} during bedtime` : ''}`} />
                 <div className="px-3 pb-3">
@@ -339,7 +339,7 @@ export function FamilyPersonPage() {
                 </div>
               </Card>
             </div>
-            <div className="grid gap-6 xl:grid-cols-3">
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
               <Card className="xl:col-span-2">
                 <CardHeader title="Trend" description="Attempts per day" />
                 <div className="px-3 pb-3">
@@ -634,7 +634,7 @@ export function FamilySettingsPage() {
       <PageHeader title="Family DNS" description="How attempts are recorded, shown and reported.">
         <FamilyNav />
       </PageHeader>
-      <div className="grid gap-6 p-6 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 p-6 xl:grid-cols-2">
         <Card>
           <CardHeader title="Display & alerts" />
           <form className="space-y-4 px-5 pb-5" onSubmit={(e) => (e.preventDefault(), save.mutate())}>

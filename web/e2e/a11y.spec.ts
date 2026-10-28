@@ -1,3 +1,4 @@
+/// <reference lib="dom" />
 import { AxeBuilder } from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
 
@@ -42,6 +43,29 @@ for (const theme of ['light', 'dark'] as const) {
     })
   })
 }
+
+test('phone width: no page scrolls sideways, and axe passes', async ({ page }) => {
+  test.setTimeout(120_000)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/')
+  await page.getByLabel('Username').fill(ADMIN.user)
+  await page.getByLabel('Password', { exact: true }).fill(ADMIN.pass)
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible()
+  const failures: string[] = []
+  for (const path of pages) {
+    await page.goto(path)
+    await page.waitForLoadState('networkidle')
+    await page.waitForTimeout(400)
+    const { scroll, width } = await page.evaluate(() => {
+      const m = document.querySelector('main')!
+      return { scroll: Math.max(m.scrollWidth, document.documentElement.scrollWidth), width: window.innerWidth }
+    })
+    if (scroll > width + 1) failures.push(`${path}: page is ${scroll}px wide at a ${width}px viewport`)
+    failures.push(...(await violations(page, `${path} (phone)`)))
+  }
+  expect(failures, failures.join('\n\n')).toEqual([])
+})
 
 async function violations(page: Page, where: string) {
   const r = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
