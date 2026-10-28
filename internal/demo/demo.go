@@ -62,6 +62,9 @@ var specs = []spec{
 	{"agh-5", "v0.107.75", "docker", "synology", "Kids VLAN", false, false, []string{"nas", "docker"}, Profile{QPS: 0.07, Devices: kids}},
 }
 
+// history is how much generated traffic Seed stores (shortened in tests).
+var history = 7 * 24 * time.Hour
+
 // Fleet is the running simulated fleet.
 type Fleet struct {
 	Sims  []*Sim
@@ -203,7 +206,7 @@ func Seed(ctx context.Context, a *app.App, f *Fleet, log *slog.Logger) error {
 	total := 0
 	for i, s := range f.Sims {
 		s.Prime(2 * time.Hour)
-		entries := s.Generate(now.Add(-7*24*time.Hour), now.Add(-2*time.Hour))
+		entries := s.Generate(now.Add(-history), now.Add(-2*time.Hour))
 		for start := 0; start < len(entries); start += 5000 {
 			end := min(start+5000, len(entries))
 			rows := make([]querylog.Row, 0, end-start)
@@ -216,7 +219,7 @@ func Seed(ctx context.Context, a *app.App, f *Fleet, log *slog.Logger) error {
 		}
 		total += len(entries)
 	}
-	if _, err := a.QueryLog.BuildTops(ctx, 7*24); err != nil {
+	if _, err := a.QueryLog.BuildTops(ctx, int(history/time.Hour)); err != nil {
 		return err
 	}
 	log.Info("demo fleet seeded", "instances", len(specs), "history_rows", total)
