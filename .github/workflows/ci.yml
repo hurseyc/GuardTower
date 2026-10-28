@@ -91,6 +91,47 @@ jobs:
           path: web/playwright-report
           retention-days: 7
 
+  installers:
+    name: Installers (shellcheck, install.sh on Debian and Ubuntu)
+    runs-on: ubuntu-latest
+    needs: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-dist
+          path: web/dist
+      - name: shellcheck
+        run: shellcheck install/install.sh install/proxmox-lxc.sh install/pkg/*.sh
+      - name: Build a release archive like GoReleaser does
+        run: |
+          CGO_ENABLED=0 go build -trimpath -o stage/guardtower ./cmd/guardtower
+          mkdir -p stage/install rel/latest/download
+          cp LICENSE README.md stage/ && cp install/guardtower.service stage/install/
+          tar -czf rel/latest/download/guardtower_linux_amd64.tar.gz -C stage guardtower LICENSE README.md install
+          (cd rel/latest/download && sha256sum guardtower_linux_amd64.tar.gz > checksums.txt)
+          (cd rel && python3 -m http.server 18999 --bind 127.0.0.1 &)
+          sleep 1
+      - name: install.sh on Debian 12 and Ubuntu 24.04
+        run: |
+          for image in debian:12 ubuntu:24.04; do
+            echo "::group::$image"
+            docker run --rm --network host -v "$PWD/install:/src:ro" "$image" bash -euc '
+              apt-get update -qq && apt-get install -y -qq curl ca-certificates >/dev/null
+              export GT_INSTALL_BASE_URL=http://127.0.0.1:18999
+              bash /src/install.sh
+              /usr/local/bin/guardtower version
+              test -d /var/lib/guardtower && getent passwd guardtower
+              bash /src/install.sh --upgrade
+              bash /src/install.sh --uninstall --purge
+              test ! -e /usr/local/bin/guardtower && ! getent passwd guardtower
+            '
+            echo "::endgroup::"
+          done
+
   docker:
     name: Docker image builds
     runs-on: ubuntu-latest

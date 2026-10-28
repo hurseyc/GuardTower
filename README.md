@@ -38,7 +38,7 @@ Running more than one AdGuard Home for redundancy, or separate instances for dif
 - **Family DNS.** See which person and device tried to reach adult (or gambling, VPN…) sites, when, and whether it was blocked, with attempts grouped per sitting, masked domains with audited reveal, bedtime flags, bypass signals (VPN, private DNS, devices going quiet), push alerts (ntfy, Discord, webhook), a weekly digest and a one-click Family profile for a group.
 - **Query-log warehouse & analytics.** Every query from every instance is stored and searchable in one place, with a live tail, long-term charts, top domains and clients, and a per-instance comparison.
 
-> **Roadmap (in progress):** one-line installers (Proxmox LXC helper, install.sh), OIDC sign-in, Prometheus metrics and a demo mode. See [the plan](docs/dev/PROGRESS.md).
+> **Roadmap (in progress):** OIDC sign-in, Prometheus metrics, YAML export and a demo mode. See [the plan](docs/dev/PROGRESS.md).
 
 ## Quick start
 
@@ -48,6 +48,8 @@ docker run -d --name guardtower -p 8080:8080 -v guardtower-data:/data \
 ```
 
 Open `http://<host>:8080`, create the admin account, then **Instances → Add instance**.
+
+**Proxmox VE** (run on the host): `bash -c "$(curl -fsSL https://raw.githubusercontent.com/hurseyc/GuardTower/main/install/proxmox-lxc.sh)"` · **Any Linux**: `curl -fsSL https://raw.githubusercontent.com/hurseyc/GuardTower/main/install/install.sh | sudo bash`
 
 Other install methods: [Docker Compose](docs/setup/install-docker.md) · [Linux / Proxmox LXC](docs/setup/install-linux.md) · `.deb` / `.rpm` packages on the [releases page](https://github.com/hurseyc/GuardTower/releases).
 

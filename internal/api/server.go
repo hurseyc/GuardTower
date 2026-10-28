@@ -43,6 +43,8 @@ type Deps struct {
 	DocsFS     fs.FS // markdown docs
 	Proxies    []*net.IPNet
 	Features   map[string]bool
+	// MetricsToken enables /metrics for scrapers sending it as a bearer token.
+	MetricsToken string
 }
 
 // Server is the HTTP handler.
@@ -61,6 +63,7 @@ func New(d Deps) *Server {
 
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, 200, map[string]string{"status": "ok"}) })
 	r.Get("/readyz", s.handleReady)
+	r.Get("/metrics", s.handleMetrics)
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Use(s.withSession)

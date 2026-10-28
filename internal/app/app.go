@@ -33,6 +33,7 @@ type Config struct {
 	SecureCookies bool
 	WebFS         fs.FS
 	DocsFS        fs.FS
+	MetricsToken  string
 	// StatusInterval overrides the status poll interval (tests).
 	StatusInterval time.Duration
 	// CollectInterval overrides the query-log poll interval (tests).
@@ -104,7 +105,7 @@ func NewWith(cfg Config, st *store.Store, box *crypto.Box) *App {
 	a.server = api.New(api.Deps{
 		Log: cfg.Log, Store: st, Auth: a.Auth, Fleet: fl, Poller: a.Poller, QueryLog: ql, Config: cs, Rollout: a.Rollout, Upgrade: a.Upgrade, Resilience: resilience.New(fl), Family: a.Family, Notify: a.Notify, Bus: bus,
 		WebFS: cfg.WebFS, DocsFS: cfg.DocsFS, Proxies: cfg.TrustedProxy,
-		Features: map[string]bool{},
+		Features: map[string]bool{}, MetricsToken: cfg.MetricsToken,
 	})
 	return a
 }
