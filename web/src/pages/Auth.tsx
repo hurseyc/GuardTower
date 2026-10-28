@@ -1,7 +1,8 @@
 import { useState, type ReactNode } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { ShieldCheck } from 'lucide-react'
 import { api, type User } from '@/lib/api'
-import { useSession } from '@/lib/session'
+import { useSession } from '@/lib/sessionContext'
 import { Button, Card, Field, Input } from '@/components/ui'
 import { Logo } from '@/components/Logo'
 
@@ -68,8 +69,17 @@ export function SetupPage() {
   )
 }
 
+// Must match internal/demo (User, Password).
+const demoLogin = { username: 'demo', password: 'guardtower-demo' }
+
 export function LoginPage() {
   const { signIn } = useSession()
+  const { data: meta } = useQuery({
+    queryKey: ['meta'],
+    queryFn: () => api.get<{ version: string; features?: Record<string, boolean>; sso?: { label: string; url: string } }>('/meta'),
+    staleTime: Infinity,
+  })
+  const [ssoError] = useState(() => new URLSearchParams(window.location.search).get('sso_error') ?? '')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -88,16 +98,49 @@ export function LoginPage() {
   }
   return (
     <AuthLayout title="Sign in" subtitle="Fleet manager for AdGuard Home">
+      {meta?.sso && (
+        <div className="mb-5 space-y-3">
+          <Button variant="primary" className="w-full justify-center" onClick={() => window.location.assign(meta.sso!.url)}>
+            {meta.sso.label}
+          </Button>
+          {ssoError && (
+            <p role="alert" className="text-sm text-danger">
+              {ssoError}
+            </p>
+          )}
+          <div className="flex items-center gap-3 text-xs text-faint">
+            <span className="h-px flex-1 bg-border" /> or with a local account <span className="h-px flex-1 bg-border" />
+          </div>
+        </div>
+      )}
       <form className="space-y-4" onSubmit={(e) => (e.preventDefault(), void submit())}>
         <Field label="Username">
-          <Input autoFocus autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} />
+          <Input autoFocus={!meta?.sso} autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} />
         </Field>
         <Field label="Password" error={error}>
           <Input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
         </Field>
-        <Button type="submit" variant="primary" className="w-full justify-center" loading={busy}>
+        <Button type="submit" variant={meta?.sso ? 'secondary' : 'primary'} className="w-full justify-center" loading={busy}>
           Sign in
         </Button>
+        {meta?.features?.demo && (
+          <div className="rounded-lg border border-border bg-accent-soft p-3 text-sm">
+            <p>
+              This is a <strong>demo</strong> with a simulated fleet. Sign in as <code className="font-mono">{demoLogin.username}</code> /{' '}
+              <code className="font-mono">{demoLogin.password}</code>.
+            </p>
+            <Button
+              type="button"
+              className="mt-2"
+              onClick={() => {
+                setUsername(demoLogin.username)
+                setPassword(demoLogin.password)
+              }}
+            >
+              Fill in demo account
+            </Button>
+          </div>
+        )}
       </form>
     </AuthLayout>
   )
