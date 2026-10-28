@@ -39,3 +39,5 @@ With Main network = `agh-1` (pve-01), `agh-2` (pve-02), `agh-3` (synology), and 
 
 - **Main network** is redundant: its instances are on three different hosts.
 - **Kids VLAN** has a **single point of failure**. If the NAS reboots, both of its DNS servers go down together. Move one of them to a Proxmox node to fix this.
+
+GuardTower shows this on the Overview, Groups, Instances and Hosts pages and on the [topology map](topology.md). See [Single points of failure](resilience.md) for every check it makes.

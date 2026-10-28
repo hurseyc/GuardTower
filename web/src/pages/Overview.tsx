@@ -5,6 +5,7 @@ import { api, type Overview, type StatsSummary } from '@/lib/api'
 import { TimeSeriesChart } from '@/components/charts'
 import { useSession } from '@/lib/session'
 import { colorFor, fmtCompact, fmtPct, timeAgo } from '@/lib/utils'
+import { FindingList, useResilience } from '@/components/Resilience'
 import { PageHeader } from '@/components/AppShell'
 import { Badge, Button, Card, CardHeader, EmptyState, Skeleton, StatusDot, Tip } from '@/components/ui'
 
@@ -24,6 +25,7 @@ export function StatCard({ label, value, sub, icon, tone = 'neutral' }: { label:
 
 export function OverviewPage() {
   const { can } = useSession()
+  const { data: res } = useResilience()
   const { data, isLoading } = useQuery({ queryKey: ['overview'], queryFn: () => api.get<Overview>('/overview'), refetchInterval: 30_000 })
   const { data: stats } = useQuery({
     queryKey: ['stats', '24h', 'overview'],
@@ -105,7 +107,24 @@ export function OverviewPage() {
             tone={unprotected.length ? 'warn' : 'ok'}
             icon={unprotected.length ? <ShieldOff className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}
           />
-          <StatCard label="Groups" value={data.summary.groups} sub={`${ungrouped.length} ungrouped instance${ungrouped.length === 1 ? '' : 's'}`} icon={<Boxes className="h-4 w-4" />} />
+          {res && res.groups.some((g) => g.members > 0) ? (
+            <StatCard
+              label="Redundancy"
+              value={`${res.summary.redundant}/${res.groups.filter((g) => g.members > 0).length} groups`}
+              sub={
+                res.summary.spof + res.summary.down + res.summary.at_risk > 0
+                  ? `At risk: ${res.groups
+                      .filter((g) => g.score === 'spof' || g.score === 'down' || g.score === 'at_risk')
+                      .map((g) => g.name)
+                      .join(', ')}`
+                  : 'Every group survives a host failure'
+              }
+              tone={res.summary.down > 0 ? 'danger' : res.summary.spof + res.summary.at_risk > 0 ? 'warn' : 'ok'}
+              icon={<Boxes className="h-4 w-4" />}
+            />
+          ) : (
+            <StatCard label="Groups" value={data.summary.groups} sub={`${ungrouped.length} ungrouped instance${ungrouped.length === 1 ? '' : 's'}`} icon={<Boxes className="h-4 w-4" />} />
+          )}
           <StatCard
             label="AdGuard Home versions"
             value={versions.size || '—'}
@@ -114,6 +133,23 @@ export function OverviewPage() {
             icon={<Server className="h-4 w-4" />}
           />
         </div>
+
+        {res && res.groups.some((g) => g.findings.some((f) => f.severity !== 'info')) && (
+          <Card>
+            <CardHeader
+              title="Single points of failure"
+              description="Groups whose DNS servers would fail together, or have no backup right now."
+              actions={
+                <Link to="/topology" className="text-sm text-accent hover:underline">
+                  View topology
+                </Link>
+              }
+            />
+            <div className="px-5 pb-5">
+              <FindingList findings={res.groups.flatMap((g) => g.findings.filter((f) => f.severity !== 'info'))} />
+            </div>
+          </Card>
+        )}
 
         {stats && stats.totals.queries > 0 && (
           <Card>

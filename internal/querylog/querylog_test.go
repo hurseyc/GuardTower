@@ -298,3 +298,53 @@ func TestSearchPerformance(t *testing.T) {
 		}
 	}
 }
+
+func TestFlows(t *testing.T) {
+	q, _ := newStore(t)
+	ctx := context.Background()
+	now := time.Now()
+	var rows []Row
+	for i := 0; i < 60; i++ {
+		reason := "NotFilteredNotFound"
+		if i%3 == 0 {
+			reason = "FilteredBlackList"
+		}
+		client := fmt.Sprintf("10.0.0.%d", 1+i%4) // .1 .2 .3 .4, 15 each
+		rows = append(rows, row(1+int64(i%2), now.Add(-time.Duration(i)*time.Minute).UnixMilli(), client, "d.com", reason))
+	}
+	if _, err := q.Insert(ctx, rows); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := q.BuildTops(ctx, 1000); err != nil {
+		t.Fatal(err)
+	}
+	for _, span := range []time.Duration{3 * time.Hour, 7 * 24 * time.Hour} {
+		fl, err := q.Flows(ctx, Filter{From: now.Add(-span).UnixMilli(), To: now.Add(time.Minute).UnixMilli()}, 2)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var total, other int64
+		clients := map[string]bool{}
+		for _, c := range fl.Clients {
+			total += c.Count
+			if c.Client == "" {
+				other += c.Count
+			} else {
+				clients[c.Client] = true
+			}
+		}
+		if total != 60 || len(clients) != 2 || other != 30 {
+			t.Fatalf("span %v: total=%d clients=%v other=%d (%+v)", span, total, clients, other, fl.Clients)
+		}
+		var outcomes, blocked int64
+		for _, o := range fl.Outcomes {
+			outcomes += o.Count
+			if o.Status == StatusBlocked {
+				blocked += o.Count
+			}
+		}
+		if outcomes != 60 || blocked != 20 {
+			t.Fatalf("span %v outcomes=%d blocked=%d", span, outcomes, blocked)
+		}
+	}
+}

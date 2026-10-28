@@ -12,8 +12,8 @@ This file is the single source of truth for resuming work. It is kept current at
 | M3 | Config engine: baseline import, base/group/instance layers, effective config, drift | ✅ done |
 | M4 | Plan/Apply, snapshots, canary, auto-rollback, history/restore | ✅ done |
 | M5 | AGH upgrades: release tracking, builtin/docker/ssh drivers, rolling upgrades | ✅ done |
-| M6 | SPOF scoring + warnings, Proxmox mapping, topology map, visual analytics | ⏳ next |
-| M7 | Family DNS: people/devices, categories, adult dashboard, alerts, Family profile | ⬜ |
+| M6 | SPOF scoring + warnings, topology map, visual analytics | ✅ done (Proxmox auto-mapping moved to M8) |
+| M7 | Family DNS: people/devices, categories, adult dashboard, alerts, Family profile | ⏳ next |
 | M8 | Installers (install.sh, Proxmox helper), self-update, OIDC, notifications, metrics, YAML export, demo mode | ⬜ |
 | M9 | Polish, accessibility pass, screenshots, v1.0.0 | ⬜ |
 
@@ -68,11 +68,26 @@ cd web && PW_CHROMIUM_PATH=/opt/pw-browsers/chromium npx playwright test   # san
 - UI: `/upgrades` (latest release, instance versions/methods, plan + start, policies, recent upgrades), Upgrades card on the instance page (method, pin, Docker/SSH settings, connection tests, host-key trust). Docs: `operation/upgrades.md`, `setup/upgrade-methods.md`, `deploy/socket-proxy.compose.yml`.
 - Note: migration 0004's `rollouts.kind` CHECK now includes `upgrade` (changed before any release, so no data migration).
 
-## Next steps (M6: single points of failure, topology, visual analytics)
+## M6 notes
 
-1. SPOF engine (`internal/resilience`): per group, compute failure domains of members (site → power/UPS → host → runtime) and score redundancy; findings: all members on one host / one site / one UPS, single-member group, host down leaving no redundancy. Expose `/resilience` and include warnings in plans (Review & apply, Upgrades) when a change or move creates a SPOF.
-2. Hosts: optional power domain field; Proxmox read-only API token per site/host to map LXC/VM → node automatically (`/api2/json/cluster/resources`), with a sync button.
-3. Badges: subtle SPOF markers on group cards, instance rows and Overview.
-4. Topology map (`/topology`, React Flow): physical layout (sites → hosts → instances) and logical layout (groups → instances), drill-down on click, node colour = health, edge width = QPS, red dashed outline on shared-host SPOFs.
-5. Visual analytics: traffic share treemap, blocked % leaderboard, Sankey clients → instances → outcome, group-vs-group comparison; validate the palette with the dataviz validator.
-6. Docs: `operation/resilience.md`, `operation/topology.md`; e2e + unit tests.
+- `internal/resilience`: pure `Analyze` over instances, groups, hosts and sites. Findings: single member, shared host, shared power, shared site (only when there are several sites), unplaced, degraded, down. Scores: redundant / at_risk / spof / down / unknown. `Preview(placement)` returns the findings a proposed group/host would newly create, with runtime health ignored.
+- API: `GET /resilience`, `POST /resilience/preview`, `GET /stats/flows` (`internal/querylog/flows.go`: top clients → instances → outcomes, raw for ≤ 24 h, rollups plus the raw tail beyond).
+- UI:
+  - Redundancy tile and SPOF card on Overview; score and findings on group cards; amber marker on Instances rows; an "only host of …" badge on Hosts.
+  - The instance dialog warns before saving.
+  - `/topology`: React Flow, physical (sites → hosts → instances, edge width = host q/s) and by-group views, focus via `?group=`.
+  - Analytics: traffic-share treemap, groups compared, clients → instances → outcomes Sankey.
+- Every mutation invalidates `['resilience']` (MutationCache in `main.tsx`).
+- Docs: `operation/resilience.md`, `operation/topology.md`; analytics, hosts, groups and index updated.
+- Deferred: Proxmox read-only API mapping (LXC/VM → node), moved to M8 with the installers.
+
+## Next steps (M7: Family DNS)
+
+1. People & devices: `people` table (name, colour, avatar emoji) and `person_devices` (client IP, MAC or ClientID, optionally linked to AGH persistent clients). An "Unassigned devices" inbox from recent query-log clients. Gate the section with the existing `family_access` user flag (`users.family_access`).
+2. Categories: map blocked queries to Adult / Gambling / Social / Gaming / Malware / VPN-Proxy / Ads-Tracking from `reason` (FilteredParental → Adult) plus `filter_id` → category mappings. Pre-map well-known NSFW lists by URL (HaGeZi NSFW, OISD NSFW, StevenBlack porn), editable; custom rules can be tagged.
+3. Attempt sessions: collapse bursts per device+category (gap of 5 min or less) into sessions with first/last/count. Use a `family_events` table built by the collector, with its own retention (`retention.family_days`, default 365).
+4. Adult dashboard (`/family`): attempts per person and device, a time-of-day heatmap with a bedtime window (`family.bedtime`), 7/30/90-day trends, top domains masked (`p***hub.com`) with click-to-reveal audited (`family.reveal`).
+5. Bypass signals: queries to DoH/DoT providers, VPN or proxy and Tor domains (a curated list); devices that go silent while others stay active; safe search not enforced in a device's group (from the config engine).
+6. Alerts & digest: notifier (ntfy / Discord / generic webhook) with per-person quiet hours, plus a weekly digest. Notification settings live under Settings.
+7. Family profile for a group: one click writes group layers (parental on, safe search enforced, recommended NSFW lists, block DoH/VPN services, optional blocked-service schedule). It goes through normal Review & apply.
+8. Docs: `operation/family.md`, `admin/notifications.md`. Tests: unit (classification, sessions), API, e2e with seeded adult-list hits from `gtdev traffic`.

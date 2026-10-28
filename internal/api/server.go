@@ -16,6 +16,7 @@ import (
 	"github.com/hurseyc/guardtower/internal/events"
 	"github.com/hurseyc/guardtower/internal/fleet"
 	"github.com/hurseyc/guardtower/internal/querylog"
+	"github.com/hurseyc/guardtower/internal/resilience"
 	"github.com/hurseyc/guardtower/internal/rollout"
 	"github.com/hurseyc/guardtower/internal/store"
 	"github.com/hurseyc/guardtower/internal/upgrade"
@@ -23,20 +24,21 @@ import (
 
 // Deps are the services the API depends on.
 type Deps struct {
-	Log      *slog.Logger
-	Store    *store.Store
-	Auth     *auth.Service
-	Fleet    *fleet.Service
-	Poller   *fleet.Poller
-	QueryLog *querylog.Store
-	Config   *config.Service
-	Rollout  *rollout.Service
-	Upgrade  *upgrade.Service
-	Bus      *events.Bus
-	WebFS    fs.FS // built SPA (index.html at root); nil serves a placeholder
-	DocsFS   fs.FS // markdown docs
-	Proxies  []*net.IPNet
-	Features map[string]bool
+	Log        *slog.Logger
+	Store      *store.Store
+	Auth       *auth.Service
+	Fleet      *fleet.Service
+	Poller     *fleet.Poller
+	QueryLog   *querylog.Store
+	Config     *config.Service
+	Rollout    *rollout.Service
+	Upgrade    *upgrade.Service
+	Resilience *resilience.Service
+	Bus        *events.Bus
+	WebFS      fs.FS // built SPA (index.html at root); nil serves a placeholder
+	DocsFS     fs.FS // markdown docs
+	Proxies    []*net.IPNet
+	Features   map[string]bool
 }
 
 // Server is the HTTP handler.
@@ -81,6 +83,7 @@ func New(d Deps) *Server {
 			r.Get("/overview", s.handleOverview)
 			r.Get("/querylog", s.handleQueryLog)
 			r.Get("/stats/summary", s.handleStatsSummary)
+			r.Get("/stats/flows", s.handleStatsFlows)
 			r.Get("/collector", s.handleCollectorStates)
 			r.Get("/config/schema", s.handleConfigSchema)
 			r.Get("/config/layers", s.handleGetLayers)
@@ -91,6 +94,8 @@ func New(d Deps) *Server {
 			r.Get("/instances/{id}/snapshots", s.handleListSnapshots)
 			r.Get("/snapshots/{sid}", s.handleGetSnapshot)
 			r.Get("/upgrades", s.handleUpgradeOverview)
+			r.Get("/resilience", s.handleResilience)
+			r.Post("/resilience/preview", s.handleResiliencePreview)
 			r.Get("/instances/{id}/upgrade-config", s.handleGetUpgradeConfig)
 
 			r.Group(func(r chi.Router) {

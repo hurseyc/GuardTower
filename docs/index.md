@@ -38,7 +38,7 @@ GuardTower **starts in observe mode**: it reads from your instances but never ch
 1. [Quick start](getting-started/quickstart.md): install GuardTower in about a minute.
 2. [First run](getting-started/first-run.md): create the admin account.
 3. [Adding instances](setup/adding-instances.md): connect your AdGuard Home servers.
-4. [Groups](operation/groups.md): split instances into groups with different settings.
+4. [Groups](operation/groups.md): split instances into groups with different settings, and check their [redundancy](operation/resilience.md) on the [topology map](operation/topology.md).
 5. [Configuration](operation/configuration.md) and [Review & apply](operation/changes.md): manage settings centrally and roll them out safely.
 6. [Upgrade methods](setup/upgrade-methods.md) and [Upgrading AdGuard Home](operation/upgrades.md): keep every instance current.
 

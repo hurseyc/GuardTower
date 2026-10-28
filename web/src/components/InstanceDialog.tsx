@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { CheckCircle2, PlugZap, XCircle } from 'lucide-react'
 import { api, type Group, type Host, type Instance, type Runtime } from '@/lib/api'
 import { Button, Dialog, Field, Input, Select, Switch, Textarea } from './ui'
+import { FindingList, type Finding } from './Resilience'
 
 const runtimes: { value: Runtime; label: string }[] = [
   { value: 'unknown', label: 'Not specified' },
@@ -64,6 +65,14 @@ export function InstanceDialog({
 }) {
   const qc = useQueryClient()
   const [f, setF] = useState<FormState>(empty)
+  // Warn before saving a placement that creates a single point of failure.
+  const { data: preview } = useQuery({
+    queryKey: ['resilience-preview', instance?.id ?? 0, f.group_id, f.host_id, f.enabled],
+    queryFn: () =>
+      api.post<{ findings: Finding[] }>('/resilience/preview', { instance_id: instance?.id ?? 0, name: f.name, group_id: Number(f.group_id), host_id: Number(f.host_id) }),
+    enabled: open && Number(f.group_id) > 0 && f.enabled !== false,
+    staleTime: 10_000,
+  })
   const [test, setTest] = useState<TestResult | null>(null)
   const [testing, setTesting] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
@@ -192,6 +201,11 @@ export function InstanceDialog({
             ))}
           </Select>
         </Field>
+        {preview && preview.findings.length > 0 && Number(f.group_id) > 0 && (
+          <div className="sm:col-span-2">
+            <FindingList findings={preview.findings} />
+          </div>
+        )}
         <Field label="Install type" hint="Determines how upgrades are performed">
           <Select value={f.runtime} onChange={(e) => set('runtime', e.target.value as Runtime)}>
             {runtimes.map((r) => (

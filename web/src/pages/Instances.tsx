@@ -6,11 +6,13 @@ import { Pencil, Plus, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react'
 import { api, type Instance, type Overview, type SyncSummary } from '@/lib/api'
 import { useSession } from '@/lib/session'
 import { colorFor, timeAgo } from '@/lib/utils'
+import { RiskMarker, useResilience } from '@/components/Resilience'
 import { PageHeader } from '@/components/AppShell'
 import { Badge, Button, Card, ConfirmDialog, EmptyState, Input, Select, Skeleton, StatusDot, Table, Td, Th, Tip } from '@/components/ui'
 import { InstanceDialog } from '@/components/InstanceDialog'
 
 export function InstancesPage() {
+  const { data: res } = useResilience()
   const { can } = useSession()
   const qc = useQueryClient()
   const nav = useNavigate()
@@ -154,6 +156,7 @@ export function InstancesPage() {
                           <span className="inline-flex items-center gap-1.5 text-sm">
                             <span className="h-2 w-2 rounded-full" style={{ background: colorFor(g.name, g.color) }} />
                             {g.name}
+                            <RiskMarker findings={(res?.groups.find((x) => x.group_id === g.id)?.findings ?? []).filter((f) => f.instance_ids.includes(i.id))} />
                           </span>
                         ) : (
                           <span className="text-faint">—</span>

@@ -50,6 +50,7 @@ export function useServerEvents(enabled: boolean) {
               void qc.invalidateQueries({ queryKey: ['overview'] })
               void qc.invalidateQueries({ queryKey: ['instances'] })
               void qc.invalidateQueries({ queryKey: ['upgrades'] })
+              void qc.invalidateQueries({ queryKey: ['resilience'] })
             }, 300)
           }
           if (t === 'instance.availability' && data && typeof data === 'object') {
