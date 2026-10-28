@@ -153,7 +153,10 @@ function UserDialog({ open, user, onOpenChange }: { open: boolean; user?: User; 
             <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
           </Field>
         )}
-        <Field label="Role" hint={roleHelp[role]}>
+        <Field
+          label="Role"
+          hint={user?.oidc ? `${roleHelp[role]} Single sign-on accounts get their role from their groups again at every sign-in.` : roleHelp[role]}
+        >
           <Select value={role} onChange={(e) => setRole(e.target.value as Role)}>
             <option value="viewer">Viewer</option>
             <option value="operator">Operator</option>

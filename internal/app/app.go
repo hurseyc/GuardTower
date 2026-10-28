@@ -35,6 +35,10 @@ type Config struct {
 	WebFS         fs.FS
 	DocsFS        fs.FS
 	MetricsToken  string
+	// OIDC configures single sign-on (disabled when Issuer is empty).
+	OIDC auth.OIDCConfig
+	// Demo marks a demo-mode server (the login page shows the demo sign-in).
+	Demo bool
 	// StatusInterval overrides the status poll interval (tests).
 	StatusInterval time.Duration
 	// CollectInterval overrides the query-log poll interval (tests).
@@ -106,9 +110,9 @@ func NewWith(cfg Config, st *store.Store, box *crypto.Box) *App {
 	a.SelfUpdate = selfupdate.New(a.Upgrade.Releases.Enabled)
 	a.Family = family.New(st, fl, bus, a.Notify, cfg.Log)
 	a.server = api.New(api.Deps{
-		Log: cfg.Log, Store: st, Auth: a.Auth, Fleet: fl, Poller: a.Poller, QueryLog: ql, Config: cs, Rollout: a.Rollout, Upgrade: a.Upgrade, Resilience: resilience.New(fl), Family: a.Family, Notify: a.Notify, SelfUpdate: a.SelfUpdate, Bus: bus,
+		Log: cfg.Log, Store: st, Auth: a.Auth, Fleet: fl, Poller: a.Poller, QueryLog: ql, Config: cs, Rollout: a.Rollout, Upgrade: a.Upgrade, Resilience: resilience.New(fl), Family: a.Family, Notify: a.Notify, SelfUpdate: a.SelfUpdate, OIDC: oidcFor(cfg), Bus: bus,
 		WebFS: cfg.WebFS, DocsFS: cfg.DocsFS, Proxies: cfg.TrustedProxy,
-		Features: map[string]bool{}, MetricsToken: cfg.MetricsToken,
+		Features: map[string]bool{"demo": cfg.Demo}, MetricsToken: cfg.MetricsToken,
 	})
 	return a
 }
@@ -141,3 +145,11 @@ func (a *App) Handler() http.Handler { return a.server }
 
 // Close releases resources.
 func (a *App) Close() error { return a.Store.Close() }
+
+func oidcFor(cfg Config) *auth.OIDC {
+	o := auth.NewOIDC(cfg.OIDC)
+	if o != nil {
+		o.Secure = cfg.SecureCookies
+	}
+	return o
+}

@@ -51,6 +51,8 @@ Open `http://<host>:8080`, create the admin account, then **Instances → Add in
 
 **Proxmox VE** (run on the host): `bash -c "$(curl -fsSL https://raw.githubusercontent.com/hurseyc/GuardTower/main/install/proxmox-lxc.sh)"` · **Any Linux**: `curl -fsSL https://raw.githubusercontent.com/hurseyc/GuardTower/main/install/install.sh | sudo bash`
 
+**Just looking?** `docker run --rm -p 8080:8080 -e GT_DEMO=true ghcr.io/hurseyc/guardtower:latest` starts a [demo](docs/getting-started/demo.md) with a simulated fleet (sign in as `demo` / `guardtower-demo`).
+
 Other install methods: [Docker Compose](docs/setup/install-docker.md) · [Linux / Proxmox LXC](docs/setup/install-linux.md) · `.deb` / `.rpm` packages on the [releases page](https://github.com/hurseyc/GuardTower/releases).
 
 ## How it compares

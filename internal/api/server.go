@@ -40,6 +40,7 @@ type Deps struct {
 	Family     *family.Service
 	Notify     *notify.Service
 	SelfUpdate *selfupdate.Checker // nil disables the GuardTower update check
+	OIDC       *auth.OIDC          // nil when single sign-on isn't configured
 	Bus        *events.Bus
 	WebFS      fs.FS // built SPA (index.html at root); nil serves a placeholder
 	DocsFS     fs.FS // markdown docs
@@ -73,6 +74,8 @@ func New(d Deps) *Server {
 		r.Get("/setup", s.handleSetupStatus)
 		r.Post("/setup", s.handleSetup)
 		r.Post("/auth/login", s.handleLogin)
+		r.Get("/auth/oidc/login", s.handleOIDCLogin)
+		r.Get("/auth/oidc/callback", s.handleOIDCCallback)
 		r.Get("/docs", s.handleDocsIndex)
 		r.Get("/docs/*", s.handleDocPage)
 

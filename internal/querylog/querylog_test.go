@@ -167,10 +167,14 @@ func TestSummarize(t *testing.T) {
 	if _, err := q.BuildTops(ctx, 1000); err != nil {
 		t.Fatal(err)
 	}
-	for _, span := range []time.Duration{3 * time.Hour, 7 * 24 * time.Hour} {
-		s, err := q.Summarize(ctx, Filter{From: now.Add(-span).UnixMilli(), To: now.Add(time.Minute).UnixMilli()}, 5)
+	for _, span := range []time.Duration{3 * time.Hour, 24 * time.Hour, 7 * 24 * time.Hour} {
+		to := now.Add(time.Minute)
+		s, err := q.Summarize(ctx, Filter{From: to.Add(-span).UnixMilli(), To: to.UnixMilli()}, 5)
 		if err != nil {
 			t.Fatal(err)
+		}
+		if s.Totals.FromRollups && s.BucketMs < 3600*1000 {
+			t.Fatalf("span %v: hourly rollups served in %d ms buckets", span, s.BucketMs)
 		}
 		if s.Totals.Queries != 100 || s.Totals.Blocked != 25 || s.Totals.BlockedPct != 25 {
 			t.Fatalf("span %v totals: %+v", span, s.Totals)
@@ -185,7 +189,7 @@ func TestSummarize(t *testing.T) {
 		if len(s.Instances) != 2 || len(s.TopDomains) != 3 || s.Totals.Clients != 1 {
 			t.Fatalf("span %v breakdowns: %d instances, %d domains, %d clients", span, len(s.Instances), len(s.TopDomains), s.Totals.Clients)
 		}
-		if (span > 24*time.Hour) != s.Totals.FromRollups {
+		if (span >= 24*time.Hour) != s.Totals.FromRollups {
 			t.Fatalf("span %v from_rollups=%v", span, s.Totals.FromRollups)
 		}
 		// Rolled-up hours plus the raw tail must add up exactly.

@@ -21,6 +21,7 @@ import (
 	"github.com/hurseyc/guardtower"
 	"github.com/hurseyc/guardtower/internal/app"
 	"github.com/hurseyc/guardtower/internal/auth"
+	"github.com/hurseyc/guardtower/internal/demo"
 	"github.com/hurseyc/guardtower/internal/store"
 	"github.com/hurseyc/guardtower/internal/version"
 )
@@ -108,9 +109,30 @@ func serve(args []string) error {
 	tlsCert := fs.String("tls-cert", env("GT_TLS_CERT", ""), "TLS certificate file to serve HTTPS directly [GT_TLS_CERT]")
 	tlsKey := fs.String("tls-key", env("GT_TLS_KEY", ""), "TLS private key file [GT_TLS_KEY]")
 	metricsToken := fs.String("metrics-token", env("GT_METRICS_TOKEN", ""), "enable /metrics for Prometheus, protected by this bearer token [GT_METRICS_TOKEN]")
+	oidcIssuer := fs.String("oidc-issuer", env("GT_OIDC_ISSUER", ""), "OpenID Connect issuer URL; enables single sign-on [GT_OIDC_ISSUER]")
+	oidcClientID := fs.String("oidc-client-id", env("GT_OIDC_CLIENT_ID", ""), "OIDC client ID [GT_OIDC_CLIENT_ID]")
+	oidcSecret := fs.String("oidc-client-secret", env("GT_OIDC_CLIENT_SECRET", ""), "OIDC client secret [GT_OIDC_CLIENT_SECRET]")
+	oidcRedirect := fs.String("oidc-redirect-url", env("GT_OIDC_REDIRECT_URL", ""), "OIDC callback URL, https://<host>/api/v1/auth/oidc/callback (default: from the request) [GT_OIDC_REDIRECT_URL]")
+	oidcScopes := fs.String("oidc-scopes", env("GT_OIDC_SCOPES", "openid,profile,email,groups"), "comma-separated OIDC scopes [GT_OIDC_SCOPES]")
+	oidcGroupsClaim := fs.String("oidc-groups-claim", env("GT_OIDC_GROUPS_CLAIM", "groups"), "ID-token claim with the user's groups [GT_OIDC_GROUPS_CLAIM]")
+	oidcAdmins := fs.String("oidc-admin-groups", env("GT_OIDC_ADMIN_GROUPS", ""), "comma-separated groups that get the admin role [GT_OIDC_ADMIN_GROUPS]")
+	oidcOperators := fs.String("oidc-operator-groups", env("GT_OIDC_OPERATOR_GROUPS", ""), "groups that get the operator role [GT_OIDC_OPERATOR_GROUPS]")
+	oidcViewers := fs.String("oidc-viewer-groups", env("GT_OIDC_VIEWER_GROUPS", ""), "groups that get the viewer role [GT_OIDC_VIEWER_GROUPS]")
+	oidcFamily := fs.String("oidc-family-groups", env("GT_OIDC_FAMILY_GROUPS", ""), "groups that get Family DNS access [GT_OIDC_FAMILY_GROUPS]")
+	oidcDefaultRole := fs.String("oidc-default-role", env("GT_OIDC_DEFAULT_ROLE", "viewer"), "role when no role groups are configured [GT_OIDC_DEFAULT_ROLE]")
+	oidcLabel := fs.String("oidc-label", env("GT_OIDC_LABEL", "Sign in with SSO"), "text of the sign-in button [GT_OIDC_LABEL]")
+	demoMode := fs.Bool("demo", envBool("GT_DEMO", false), "run against a simulated fleet with a week of generated history, in a throwaway data directory [GT_DEMO]")
 	_ = fs.Parse(args)
 
 	log := newLogger(*logLevel, *logJSON)
+	if *demoMode {
+		dir, err := os.MkdirTemp("", "guardtower-demo-")
+		if err != nil {
+			return err
+		}
+		defer func() { _ = os.RemoveAll(dir) }()
+		*dataDir = dir
+	}
 	cidrs, err := parseCIDRs(*proxies)
 	if err != nil {
 		return err
@@ -130,11 +152,29 @@ func serve(args []string) error {
 		WebFS:         guardtower.WebFS(),
 		DocsFS:        guardtower.DocsFS(),
 		MetricsToken:  *metricsToken,
+		Demo:          *demoMode,
+		OIDC: auth.OIDCConfig{
+			Issuer: *oidcIssuer, ClientID: *oidcClientID, ClientSecret: *oidcSecret, RedirectURL: *oidcRedirect,
+			Scopes: splitList(*oidcScopes), GroupsClaim: *oidcGroupsClaim, AdminGroups: splitList(*oidcAdmins),
+			OperatorGroups: splitList(*oidcOperators), ViewerGroups: splitList(*oidcViewers), FamilyGroups: splitList(*oidcFamily),
+			DefaultRole: *oidcDefaultRole, Label: *oidcLabel,
+		},
 	})
 	if err != nil {
 		return err
 	}
 	defer a.Close()
+	if *demoMode {
+		f, err := demo.Start(ctx)
+		if err != nil {
+			return fmt.Errorf("start demo fleet: %w", err)
+		}
+		defer f.Close()
+		if err := demo.Seed(ctx, a, f, log); err != nil {
+			return fmt.Errorf("seed demo: %w", err)
+		}
+		log.Info("demo mode: sign in with the demo account; nothing is kept after exit", "user", demo.User, "password", demo.Password)
+	}
 	a.Start(ctx)
 
 	srv := &http.Server{
@@ -173,6 +213,16 @@ func newLogger(level string, asJSON bool) *slog.Logger {
 		return slog.New(slog.NewJSONHandler(os.Stderr, opts))
 	}
 	return slog.New(slog.NewTextHandler(os.Stderr, opts))
+}
+
+func splitList(s string) []string {
+	var out []string
+	for _, p := range strings.Split(s, ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 func parseCIDRs(s string) ([]*net.IPNet, error) {
