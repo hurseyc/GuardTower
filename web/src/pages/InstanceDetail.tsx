@@ -9,6 +9,7 @@ import { colorFor, fmtDateTime, timeAgo } from '@/lib/utils'
 import { PageHeader } from '@/components/AppShell'
 import { Badge, Button, Card, CardHeader, Dialog, Select, Skeleton, StatusDot } from '@/components/ui'
 import { InstanceDialog } from '@/components/InstanceDialog'
+import { SyncCard } from '@/components/SyncCard'
 
 const runtimeLabel: Record<string, string> = {
   unknown: 'Not specified',
@@ -157,6 +158,7 @@ export function InstanceDetailPage() {
             </Item>
           </dl>
         </Card>
+        <SyncCard instanceId={inst.id} />
       </div>
       <InstanceDialog open={edit} onOpenChange={setEdit} instance={inst} groups={ov?.groups ?? []} hosts={ov?.hosts ?? []} />
       <Dialog

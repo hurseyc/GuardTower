@@ -193,7 +193,9 @@ func (s *Service) Effective(ctx context.Context, instanceID int64, live bool) ([
 			} else {
 				st.Live = d
 				if st.Managed {
-					st.Changes = Diff(sec, st.Desired, d)
+					if cs := Diff(sec, st.Desired, d); cs != nil {
+						st.Changes = cs
+					}
 					st.Unsupported = Unsupported(sec, st.Desired, d)
 				}
 			}

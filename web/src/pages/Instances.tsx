@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Pencil, Plus, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react'
-import { api, type Instance, type Overview } from '@/lib/api'
+import { api, type Instance, type Overview, type SyncSummary } from '@/lib/api'
 import { useSession } from '@/lib/session'
 import { colorFor, timeAgo } from '@/lib/utils'
 import { PageHeader } from '@/components/AppShell'
@@ -16,6 +16,8 @@ export function InstancesPage() {
   const nav = useNavigate()
   const [params, setParams] = useSearchParams()
   const { data, isLoading } = useQuery({ queryKey: ['overview'], queryFn: () => api.get<Overview>('/overview') })
+  const { data: sync } = useQuery({ queryKey: ['sync'], queryFn: () => api.get<SyncSummary[]>('/sync'), refetchInterval: 60_000 })
+  const syncById = new Map((sync ?? []).map((s) => [s.instance_id, s]))
   const [dialog, setDialog] = useState<{ open: boolean; instance?: Instance }>({ open: false })
   const [toDelete, setToDelete] = useState<Instance | null>(null)
   const [q, setQ] = useState('')
@@ -122,6 +124,7 @@ export function InstancesPage() {
                   <Th>Host</Th>
                   <Th>Version</Th>
                   <Th>Status</Th>
+                  <Th>Settings</Th>
                   <Th className="text-right">Actions</Th>
                 </tr>
               </thead>
@@ -168,6 +171,14 @@ export function InstancesPage() {
                             <span className="text-xs text-danger">Offline · seen {timeAgo(i.status?.last_seen_at)}</span>
                           </Tip>
                         )}
+                      </Td>
+                      <Td>
+                        {(() => {
+                          const s = syncById.get(i.id)
+                          if (!s) return <span className="text-xs text-faint">not managed</span>
+                          if (s.errors && Object.keys(s.errors).length) return <Badge tone="danger">check failed</Badge>
+                          return s.total === 0 ? <Badge tone="ok">in sync</Badge> : <Badge tone="warn">{s.total} to change</Badge>
+                        })()}
                       </Td>
                       <Td className="text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-end gap-1">
