@@ -9,8 +9,8 @@ This file is the single source of truth for resuming work. It is kept current at
 | M0 | Scaffold, CI, dev fleet, auth + first-run setup | ✅ done |
 | M1 | Instances, groups, tags, hosts/sites, live status dashboard, AGH client | ✅ done |
 | M2 | Query-log collector & warehouse, search, live tail, fleet/group charts | ✅ done |
-| M3 | Config engine: baseline import, base/group/instance layers, effective config, drift | ⏳ next |
-| M4 | Plan/Apply, snapshots, canary, auto-rollback, history/restore | ⬜ |
+| M3 | Config engine: baseline import, base/group/instance layers, effective config, drift | ✅ done |
+| M4 | Plan/Apply, snapshots, canary, auto-rollback, history/restore | ⏳ next |
 | M5 | AGH upgrades: release tracking, builtin/docker/ssh drivers, rolling upgrades | ⬜ |
 | M6 | SPOF scoring + warnings, Proxmox mapping, topology map, visual analytics | ⬜ |
 | M7 | Family DNS: people/devices, categories, adult dashboard, alerts, Family profile | ⬜ |
@@ -45,9 +45,16 @@ cd web && PW_CHROMIUM_PATH=/opt/pw-browsers/chromium npx playwright test   # san
 - UI: Analytics (`/analytics`), Query log (`/logs`, live tail), Settings (`/settings`, retention + collection health), 24 h traffic on Overview.
 - Charts: native ECharts host in `web/src/components/charts.tsx`; palette tokens in `index.css`, validated with the dataviz validator for both surfaces.
 
-## Next steps (M3: config engine)
+## M3 notes
 
-1. `internal/config`: section model (DNS, filters + user rules, rewrites, clients, access, blocked services + schedule, safe browsing/parental/safe search, query-log/stats config, protection), read from AGH, normalise, diff.
-2. Layers table (base / group / instance) with per-field merge (scalars replace; keyed lists merge by key, with tombstones).
-3. Baseline import from an instance; effective-config view showing each value's origin layer.
-4. Drift detection job: compare effective config against live config, publish `drift.detected`, and show it in the UI.
+- `internal/config`: schema-driven sections (`schema.go`, `sections.go`), layer merge/diff/validate (`merge.go`), service (`service.go`: layers, effective config, baseline import, sync checks every 2 min + on change, `ApplyInstance`).
+- Integration test `TestConfigSyncAllSections` applies all 11 sections to v0.107.79 and v0.107.70 and checks the diff is empty afterwards.
+- UI: `/config` (scope picker, schema-driven editor with inherit switches, keyed-list editor, import dialog), Settings sync card on the instance page, Settings column on Instances.
+
+## Next steps (M4: plan / apply / rollout)
+
+1. Migration: `snapshots` (instance, section docs, reason), `rollouts` + `rollout_steps`.
+2. `internal/rollout`: plan = per-instance changes for a scope (fleet/group/tag/instance); apply = for each instance (canary first, then serial): snapshot live → apply → health probe (DNS query to the instance + /control/status) → next; on failure restore from the snapshot and stop.
+3. Observe mode: global setting `mode.observe` (default on); applying requires turning it off explicitly (admin).
+4. API + UI: "Review & apply" page with per-instance diff, progress over SSE, rollout history, snapshot list + restore.
+5. Drift attribution: compare live with the last applied snapshot to tell "edited outside GuardTower" from "pending".

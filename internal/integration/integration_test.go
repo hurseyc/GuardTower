@@ -10,6 +10,7 @@ package integration
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"log/slog"
 	"os"
@@ -22,6 +23,7 @@ import (
 
 	"github.com/hurseyc/guardtower/internal/agh"
 	"github.com/hurseyc/guardtower/internal/app"
+	"github.com/hurseyc/guardtower/internal/config"
 	"github.com/hurseyc/guardtower/internal/crypto"
 	"github.com/hurseyc/guardtower/internal/devfleet"
 	"github.com/hurseyc/guardtower/internal/fleet"
@@ -185,4 +187,91 @@ func waitFor(t *testing.T, cond func() bool) {
 		time.Sleep(500 * time.Millisecond)
 	}
 	t.Fatal("condition not met within 20s")
+}
+
+// TestConfigSyncAllSections imports a baseline from one instance, layers
+// group changes for every section on top, applies them to instances of each
+// supported AdGuard Home version and checks nothing is left to change.
+func TestConfigSyncAllSections(t *testing.T) {
+	ctx := context.Background()
+	st, err := store.OpenPath(ctx, ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	box, _ := crypto.New(make([]byte, 32))
+	a := app.NewWith(app.Config{Log: slog.New(slog.NewTextHandler(io.Discard, nil))}, st, box)
+	pw := devfleet.Password
+	g, err := a.Fleet.SaveGroup(ctx, 0, "Kids", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ids []int64
+	for i, ver := range versions() {
+		node, _ := startNode(t, ver, 10+i)
+		in, err := a.Fleet.CreateInstance(ctx, fleet.InstanceInput{Name: "agh-" + ver, URL: node.URL, Username: devfleet.User, Password: &pw, GroupID: g.ID})
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids = append(ids, in.ID)
+	}
+	// Baseline: everything the first instance currently has.
+	if err := a.Config.ImportBaseline(ctx, ids[0], config.ScopeRef{Scope: config.ScopeBase}, nil, "test"); err != nil {
+		t.Fatal(err)
+	}
+	// Group layer touching every section.
+	group := config.ScopeRef{Scope: config.ScopeGroup, ID: g.ID}
+	layers := map[string]string{
+		"dns":              `{"upstream_dns": ["https://dns.quad9.net/dns-query", "https://cloudflare-dns.com/dns-query"], "ratelimit": 30, "blocking_mode": "nxdomain", "cache_optimistic": true, "ratelimit_whitelist": {"add": ["10.0.0.9"]}}`,
+		"filtering":        `{"interval": 12, "filters": {"upsert": [{"url": "https://adguardteam.github.io/HostlistsRegistry/assets/filter_1.txt", "name": "AdGuard DNS filter", "enabled": false}]}, "user_rules": {"add": ["||tiktok.com^", "@@||school.example^"]}}`,
+		"rewrites":         `{"rewrites": {"upsert": [{"domain": "nas.home", "answer": "192.168.1.20", "enabled": true}, {"domain": "printer.home", "answer": "192.168.1.30", "enabled": true}]}}`,
+		"clients":          `{"clients": {"upsert": [{"name": "Sam iPad", "ids": ["192.168.1.50"], "tags": ["user_child"], "use_global_settings": true, "use_global_blocked_services": true}]}}`,
+		"access":           `{"disallowed_clients": {"add": ["192.168.66.6"]}, "blocked_hosts": {"add": ["evil.example"]}}`,
+		"blocked_services": `{"ids": {"add": ["tiktok", "roblox"]}}`,
+		"safebrowsing":     `{"enabled": true}`,
+		"parental":         `{"enabled": true}`,
+		"safesearch":       `{"enabled": true, "youtube": true}`,
+		"querylog":         `{"interval": 86400000, "ignored": {"add": ["ignored.example"]}}`,
+		"stats":            `{"interval": 86400000}`,
+	}
+	for sec, js := range layers {
+		d, err := config.ParseDoc([]byte(js))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := a.Config.SetLayer(ctx, group, sec, d, "test"); err != nil {
+			t.Fatalf("%s: %v", sec, err)
+		}
+	}
+	for i, id := range ids {
+		t.Run(versions()[i], func(t *testing.T) {
+			before, err := a.Config.Effective(ctx, id, true)
+			if err != nil {
+				t.Fatal(err)
+			}
+			pending := 0
+			for _, s := range before {
+				if s.LiveError != "" {
+					t.Fatalf("%s: %s", s.Section, s.LiveError)
+				}
+				pending += len(s.Changes)
+			}
+			if pending == 0 {
+				t.Fatal("expected pending changes before apply")
+			}
+			if _, err := a.Config.ApplyInstance(ctx, id, nil); err != nil {
+				t.Fatal(err)
+			}
+			after, err := a.Config.Effective(ctx, id, true)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, s := range after {
+				if len(s.Changes) > 0 {
+					b, _ := json.MarshalIndent(s.Changes, "", "  ")
+					t.Errorf("%s still differs after apply: %s", s.Section, b)
+				}
+			}
+		})
+	}
 }

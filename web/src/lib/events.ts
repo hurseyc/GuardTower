@@ -21,6 +21,7 @@ const EVENT_TYPES = [
   'drift.detected',
   'upgrade.update',
   'family.alert',
+  'sync.changed',
 ]
 
 /** One EventSource for the whole app; invalidates queries on relevant events. */
@@ -56,7 +57,7 @@ export function useServerEvents(enabled: boolean) {
             else toast.error(`${d.name} went offline`, { description: d.error })
           }
           if (t === 'rollout.update') void qc.invalidateQueries({ queryKey: ['rollouts'] })
-          if (t === 'drift.detected') void qc.invalidateQueries({ queryKey: ['drift'] })
+          if (t === 'sync.changed') void qc.invalidateQueries({ queryKey: ['sync'] })
           if (t === 'upgrade.update') void qc.invalidateQueries({ queryKey: ['upgrades'] })
         })
       }

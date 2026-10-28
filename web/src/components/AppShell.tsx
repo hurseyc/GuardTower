@@ -13,6 +13,7 @@ import { Kbd, Sheet, Skeleton } from './ui'
 import { Markdown } from './Markdown'
 import { Logo } from './Logo'
 import { ChangePasswordDialog } from './ChangePasswordDialog'
+import { ErrorBoundary } from './ErrorBoundary'
 
 type Theme = 'light' | 'dark' | 'system'
 
@@ -192,7 +193,9 @@ export function AppShell() {
           </div>
         </header>
         <main className="min-h-0 flex-1 overflow-y-auto">
-          <Outlet />
+          <ErrorBoundary resetKey={loc.pathname}>
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </div>
       <HelpDrawer open={helpOpen} onOpenChange={setHelpOpen} />

@@ -225,3 +225,64 @@ export interface SettingsResponse {
   database_bytes: number
   querylog_rows: number
 }
+
+// ---- configuration ----
+
+export type FieldKind = 'bool' | 'int' | 'string' | 'enum' | 'list' | 'set' | 'keyed' | 'object' | 'duration_ms'
+
+export interface ConfigField {
+  name: string
+  label: string
+  help?: string
+  kind: FieldKind
+  enum?: string[]
+  key_label?: string
+  item_fields?: ConfigField[]
+}
+
+export interface ConfigSection {
+  key: string
+  label: string
+  help: string
+  fields: ConfigField[]
+}
+
+export type LayerDoc = Record<string, unknown>
+
+export interface LayerInfo {
+  scope: 'base' | 'group' | 'instance'
+  id: number
+  section: string
+  doc: LayerDoc
+  updated_at: number
+  updated_by: string
+}
+
+export interface Change {
+  section: string
+  field: string
+  label: string
+  op: 'set' | 'add' | 'remove' | 'update'
+  item?: string
+  from?: unknown
+  to?: unknown
+}
+
+export interface SectionState {
+  section: string
+  managed: boolean
+  desired?: Record<string, unknown>
+  origins?: Record<string, { scope: string; name: string }>
+  live?: Record<string, unknown>
+  changes: Change[]
+  live_error?: string
+  unsupported?: string[]
+}
+
+export interface SyncSummary {
+  instance_id: number
+  sections: Record<string, number>
+  errors?: Record<string, string>
+  total: number
+  checked_at: number
+}
