@@ -1,12 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { api, type AuditEntry, type Role, type User } from '@/lib/api'
-import { useSession } from '@/lib/session'
+import { useSession } from '@/lib/sessionContext'
 import { fmtDateTime, timeAgo } from '@/lib/utils'
 import { PageHeader } from '@/components/AppShell'
 import { Badge, Button, Card, ConfirmDialog, Dialog, Field, Input, Select, Switch, Table, Td, Th } from '@/components/ui'
+import { useOnChange } from '@/lib/useOnChange'
 
 const roleHelp: Record<Role, string> = {
   viewer: 'Read-only access to dashboards, logs and configuration.',
@@ -108,14 +109,14 @@ function UserDialog({ open, user, onOpenChange }: { open: boolean; user?: User; 
   const [password, setPassword] = useState('')
   const [role, setRole] = useState<Role>('viewer')
   const [family, setFamily] = useState(false)
-  useEffect(() => {
-    if (open) {
+  useOnChange(open ? (user?.id ?? 'new') : null, (k) => {
+    if (k !== null) {
       setUsername(user?.username ?? '')
       setPassword('')
       setRole(user?.role ?? 'viewer')
       setFamily(user?.family_access ?? false)
     }
-  }, [open, user])
+  })
   const save = useMutation({
     mutationFn: () =>
       user
@@ -153,7 +154,10 @@ function UserDialog({ open, user, onOpenChange }: { open: boolean; user?: User; 
             <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
           </Field>
         )}
-        <Field label="Role" hint={roleHelp[role]}>
+        <Field
+          label="Role"
+          hint={user?.oidc ? `${roleHelp[role]} Single sign-on accounts get their role from their groups again at every sign-in.` : roleHelp[role]}
+        >
           <Select value={role} onChange={(e) => setRole(e.target.value as Role)}>
             <option value="viewer">Viewer</option>
             <option value="operator">Operator</option>

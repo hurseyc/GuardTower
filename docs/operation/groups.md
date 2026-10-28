@@ -28,7 +28,7 @@ Every instance's effective configuration is built from three layers, applied in 
 2. **Group** adds to or replaces base values for its members, such as an extra adult-content list or enforced safe search.
 3. **Instance overrides** are for genuine one-offs, such as a different upstream on one server. Keep them rare.
 
-Lists that have a natural key (filter lists by URL, rewrites by domain, clients by name) are **merged**: a group can add a filter list without repeating the base ones, and can explicitly *remove* an inherited item.
+Lists that have a natural key (filter lists by URL, rewrites by domain, clients by name) are **merged**: a group can add a filter list without repeating the base ones, and can explicitly *remove* an inherited item. See [Configuration & settings layers](configuration.md) for how to edit each level.
 
 ## Rules
 
@@ -44,4 +44,4 @@ Lists that have a natural key (filter lists by URL, rewrites by domain, clients 
 
 ## Redundancy
 
-For DNS to keep working when a server fails, each group should have at least two instances **on different hosts**. Record where instances run under [Hosts & sites](hosts.md).
+For DNS to keep working when a server fails, each group should have at least two instances **on different hosts**. Record where instances run under [Hosts & sites](hosts.md). Each group card then shows its redundancy score and any [single points of failure](resilience.md).

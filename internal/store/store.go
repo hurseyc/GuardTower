@@ -48,7 +48,10 @@ func OpenPath(ctx context.Context, path string) (*Store, error) {
 		pragmas = pragmas[1:]
 		dsn += "&" + strings.Join(pragmas, "&")
 	} else {
-		dsn = "file:" + path + "?" + strings.Join(pragmas, "&")
+		// Transactions take the write lock up front: a deferred transaction
+		// that reads, then writes, fails at once with SQLITE_BUSY when
+		// another writer got in between, instead of waiting busy_timeout.
+		dsn = "file:" + path + "?" + strings.Join(pragmas, "&") + "&_txlock=immediate"
 	}
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {

@@ -21,6 +21,8 @@ const EVENT_TYPES = [
   'drift.detected',
   'upgrade.update',
   'family.alert',
+  'sync.changed',
+  'placement.changed',
 ]
 
 /** One EventSource for the whole app; invalidates queries on relevant events. */
@@ -48,6 +50,8 @@ export function useServerEvents(enabled: boolean) {
             statusTimer = setTimeout(() => {
               void qc.invalidateQueries({ queryKey: ['overview'] })
               void qc.invalidateQueries({ queryKey: ['instances'] })
+              void qc.invalidateQueries({ queryKey: ['upgrades'] })
+              void qc.invalidateQueries({ queryKey: ['resilience'] })
             }, 300)
           }
           if (t === 'instance.availability' && data && typeof data === 'object') {
@@ -56,8 +60,17 @@ export function useServerEvents(enabled: boolean) {
             else toast.error(`${d.name} went offline`, { description: d.error })
           }
           if (t === 'rollout.update') void qc.invalidateQueries({ queryKey: ['rollouts'] })
-          if (t === 'drift.detected') void qc.invalidateQueries({ queryKey: ['drift'] })
+          if (t === 'sync.changed') void qc.invalidateQueries({ queryKey: ['sync'] })
+          if (t === 'drift.detected' && data && typeof data === 'object') {
+            const d = data as { name: string; sections: string[] }
+            toast.warning(`${d.name} was changed outside GuardTower`, { description: `Drifted: ${d.sections.join(', ')}` })
+            void qc.invalidateQueries({ queryKey: ['sync'] })
+          }
           if (t === 'upgrade.update') void qc.invalidateQueries({ queryKey: ['upgrades'] })
+          if (t === 'placement.changed' && Array.isArray(data)) {
+            for (const m of data as { instance: string; to: string }[]) toast.info(`${m.instance} now runs on ${m.to}`, { description: 'Placement updated from Proxmox' })
+            for (const k of ['instances', 'hosts', 'overview', 'resilience', 'proxmox']) void qc.invalidateQueries({ queryKey: [k] })
+          }
         })
       }
       es.onerror = () => {

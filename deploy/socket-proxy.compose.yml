@@ -1,0 +1,27 @@
+# Docker socket proxy for GuardTower's Docker upgrade method.
+#
+# Run this on the Docker host (e.g. your NAS) next to AdGuard Home. It exposes
+# only the Docker API calls GuardTower needs to upgrade a container, and
+# nothing else (no exec, no secrets, no swarm, no volumes API).
+#
+#   docker compose -f socket-proxy.compose.yml up -d
+#
+# Then set the instance's Docker endpoint in GuardTower to
+# tcp://<docker-host>:2375 and firewall port 2375 so that only GuardTower's
+# IP can reach it. See docs/setup/upgrade-methods.md.
+services:
+  socket-proxy:
+    image: tecnativa/docker-socket-proxy:v0.4.1
+    container_name: guardtower-socket-proxy
+    restart: unless-stopped
+    environment:
+      CONTAINERS: 1   # inspect, create, start, stop, rename, remove, archive (config backup)
+      IMAGES: 1       # pull the new AdGuard Home image
+      NETWORKS: 1     # reconnect containers attached to more than one network
+      VERSION: 1      # connection test
+      POST: 1         # allow the write calls above (everything else stays denied)
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      # Bind to the LAN address GuardTower uses, not 0.0.0.0, where possible.
+      - "2375:2375"
