@@ -6,7 +6,7 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { Command } from 'cmdk'
 import { CircleHelp, LogOut, Menu, Monitor, Moon, Search, Sun, X, KeyRound } from 'lucide-react'
 import { api, type DocPage, type Overview } from '@/lib/api'
-import { useSession } from '@/lib/session'
+import { useSession } from '@/lib/sessionContext'
 import { navRoutes, docForPath } from '@/lib/routes'
 import { onServerEvent, useServerEvents } from '@/lib/events'
 import { cn } from '@/lib/utils'
@@ -16,6 +16,7 @@ import { Logo } from './Logo'
 import { ChangePasswordDialog } from './ChangePasswordDialog'
 import { ErrorBoundary } from './ErrorBoundary'
 import { UpdateBanner } from './UpdateBanner'
+import { useOnChange } from '@/lib/useOnChange'
 
 type Theme = 'light' | 'dark' | 'system'
 
@@ -64,7 +65,7 @@ export function AppShell() {
     })
   }, [seesFamily, qc, navigate])
 
-  useEffect(() => setMobileOpen(false), [loc.pathname])
+  useOnChange(loc.pathname, () => setMobileOpen(false))
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {

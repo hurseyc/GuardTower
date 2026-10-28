@@ -1,8 +1,7 @@
-import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle, Info, ShieldAlert, ShieldCheck, ShieldX } from 'lucide-react'
-import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { Tip } from './ui'
+import { scoreLabel } from '@/lib/labels'
 
 export type Severity = 'info' | 'warn' | 'critical'
 export type GroupScore = 'down' | 'spof' | 'at_risk' | 'unknown' | 'redundant'
@@ -32,18 +31,6 @@ export interface ResilienceReport {
   spof_hosts: Record<string, number[]>
   instances: Record<string, Severity>
   summary: { redundant: number; at_risk: number; spof: number; down: number; unknown: number }
-}
-
-export function useResilience() {
-  return useQuery({ queryKey: ['resilience'], queryFn: () => api.get<ResilienceReport>('/resilience'), refetchInterval: 60_000 })
-}
-
-export const scoreLabel: Record<GroupScore, string> = {
-  redundant: 'Redundant',
-  at_risk: 'At risk',
-  spof: 'Single point of failure',
-  down: 'Down',
-  unknown: 'Unknown',
 }
 
 /** A small, quiet marker: amber for risks, red only when DNS is actually down. */

@@ -1,14 +1,7 @@
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Link } from 'react-router'
-
-function slugify(text: string) {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .trim()
-    .replace(/\s+/g, '-')
-}
+import { slugify } from '@/lib/slugify'
 
 function textOf(children: React.ReactNode): string {
   if (typeof children === 'string' || typeof children === 'number') return String(children)
@@ -66,4 +59,3 @@ function resolvePath(p: string): string {
   return out.join('/') || 'index'
 }
 
-export { slugify }

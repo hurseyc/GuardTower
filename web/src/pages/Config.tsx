@@ -1,15 +1,16 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Boxes, Download, FileDown, FileUp, Globe, Layers, Plus, ShieldCheck, Trash2, Undo2 } from 'lucide-react'
 import { api, type ConfigField, type ConfigSection, type LayerDoc, type LayerInfo, type Overview } from '@/lib/api'
 import { fmtValue, keyOf, mergeLayers } from '@/lib/configMerge'
-import { useSession } from '@/lib/session'
+import { useSession } from '@/lib/sessionContext'
 import { cn, colorFor, timeAgo } from '@/lib/utils'
 import { PageHeader } from '@/components/AppShell'
 import { YamlImportDialog } from '@/components/YamlDialog'
 import { Badge, Button, Card, Dialog, Field, Input, Select, Skeleton, Switch, Textarea } from '@/components/ui'
+import { useOnChange } from '@/lib/useOnChange'
 
 type ScopeSel = { scope: 'base' | 'group' | 'instance'; id: number }
 
@@ -384,7 +385,7 @@ function FieldEditor({
 function JSONEditor({ value, onChange, readOnly }: { value: unknown; onChange: (v: unknown) => void; readOnly: boolean }) {
   const [text, setText] = useState(JSON.stringify(value, null, 2))
   const [err, setErr] = useState('')
-  useEffect(() => setText(JSON.stringify(value, null, 2)), [value])
+  useOnChange(JSON.stringify(value, null, 2), setText)
   return (
     <div>
       <Textarea
@@ -509,12 +510,12 @@ function ImportDialog({
   const qc = useQueryClient()
   const [instanceId, setInstanceId] = useState(0)
   const [sections, setSections] = useState<string[]>(schema.map((s) => s.key))
-  useEffect(() => {
-    if (open) {
+  useOnChange(open, (o) => {
+    if (o) {
       setInstanceId(overview.instances.find((i) => i.status?.online)?.id ?? overview.instances[0]?.id ?? 0)
       setSections(schema.map((s) => s.key))
     }
-  }, [open, overview, schema])
+  })
   const run = useMutation({
     mutationFn: () => api.post('/config/import', { instance_id: instanceId, scope: target.scope, id: target.id, sections }),
     onSuccess: () => {

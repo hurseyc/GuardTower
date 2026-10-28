@@ -15,23 +15,14 @@ import {
   type Overview,
   type Person,
 } from '@/lib/api'
-import { useSession } from '@/lib/session'
+import { useSession } from '@/lib/sessionContext'
 import { cn, colorFor, fmtDateTime, fmtNum, timeAgo } from '@/lib/utils'
 import { PageHeader } from '@/components/AppShell'
 import { Badge, Button, Card, CardHeader, ConfirmDialog, Dialog, EmptyState, Field, Input, Select, Skeleton, Switch, Table, Td, Th } from '@/components/ui'
 import { BarList, HourHeatmap, TimeSeriesChart } from '@/components/charts'
 import { StatCard } from './Overview'
+import { categoryLabel } from '@/lib/labels'
 
-export const categoryLabel: Record<FamilyCategory, string> = {
-  adult: 'Adult',
-  gambling: 'Gambling',
-  bypass: 'VPN & private DNS',
-  social: 'Social media',
-  gaming: 'Gaming',
-  malware: 'Malware',
-  safesearch: 'Safe search',
-  ads: 'Ads & tracking',
-}
 // Fixed palette slot per category (identity, never rank).
 const categorySlot: Record<FamilyCategory, number> = { adult: 4, gambling: 3, bypass: 6, social: 0, gaming: 2, malware: 7, safesearch: 5, ads: 1 }
 const catColor = (c: FamilyCategory) => `var(--series-${categorySlot[c] + 1})`

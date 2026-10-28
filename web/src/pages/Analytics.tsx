@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useNavigate, useSearchParams } from 'react-router'
+import { useNavigate } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import { Activity, Ban, Clock, Database, Users } from 'lucide-react'
 import { api, type Overview, type StatsSummary } from '@/lib/api'
@@ -7,34 +7,11 @@ import { colorFor, fmtCompact, fmtNum, fmtPct } from '@/lib/utils'
 import { statusMeta } from '@/lib/status'
 import { PageHeader } from '@/components/AppShell'
 import { Card, CardHeader, EmptyState, Select, Skeleton, Tabs, TabsList, TabsTrigger } from '@/components/ui'
-import { BarList, FlowSankey, HourHeatmap, TimeSeriesChart, TrafficTreemap, useChartTheme, seriesColor, type SankeyInput, type TreeGroup } from '@/components/charts'
+import { BarList, FlowSankey, HourHeatmap, TimeSeriesChart, TrafficTreemap, type SankeyInput, type TreeGroup } from '@/components/charts'
+import { seriesColor } from '@/lib/chartTheme'
+import { useChartTheme } from '@/lib/chartTheme'
 import { StatCard } from './Overview'
-
-export const ranges = [
-  { value: '1h', label: '1 hour' },
-  { value: '6h', label: '6 hours' },
-  { value: '24h', label: '24 hours' },
-  { value: '7d', label: '7 days' },
-  { value: '30d', label: '30 days' },
-]
-
-/** Shared filter state kept in the URL so views are linkable. */
-export function useFleetFilter(defaultRange = '24h') {
-  const [params, setParams] = useSearchParams()
-  const range = params.get('range') ?? defaultRange
-  const group = params.get('group') ?? ''
-  const instance = params.get('instance') ?? ''
-  const set = (k: string, v: string) => {
-    const n = new URLSearchParams(params)
-    if (v) n.set(k, v)
-    else n.delete(k)
-    setParams(n, { replace: true })
-  }
-  const qs = new URLSearchParams()
-  if (group) qs.set('group', group)
-  if (instance) qs.set('instance', instance)
-  return { range, group, instance, set, scopeQuery: qs.toString() }
-}
+import { ranges, useFleetFilter } from '@/lib/fleetFilter'
 
 export function FleetFilterBar({ overview, range, group, instance, set, showRange = true }: { overview?: Overview; range?: string; group: string; instance: string; set: (k: string, v: string) => void; showRange?: boolean }) {
   return (

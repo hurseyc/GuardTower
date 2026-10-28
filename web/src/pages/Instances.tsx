@@ -4,12 +4,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Pencil, Plus, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react'
 import { api, type Instance, type Overview, type SyncSummary } from '@/lib/api'
-import { useSession } from '@/lib/session'
+import { useSession } from '@/lib/sessionContext'
 import { colorFor, timeAgo } from '@/lib/utils'
-import { RiskMarker, useResilience } from '@/components/Resilience'
+import { RiskMarker } from '@/components/Resilience'
+import { useResilience } from '@/lib/resilience'
 import { PageHeader } from '@/components/AppShell'
 import { Badge, Button, Card, ConfirmDialog, EmptyState, Input, Select, Skeleton, StatusDot, Table, Td, Th, Tip } from '@/components/ui'
 import { InstanceDialog } from '@/components/InstanceDialog'
+import { useOnChange } from '@/lib/useOnChange'
 
 export function InstancesPage() {
   const { data: res } = useResilience()
@@ -26,13 +28,16 @@ export function InstancesPage() {
   const [groupFilter, setGroupFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
 
+  // ?add=1 (from the command palette or Overview) opens the dialog once.
+  const addRequested = params.get('add') === '1' && can('admin')
+  useOnChange(addRequested, (v) => {
+    if (v) setDialog({ open: true })
+  })
   useEffect(() => {
-    if (params.get('add') === '1' && can('admin')) {
-      setDialog({ open: true })
-      params.delete('add')
-      setParams(params, { replace: true })
-    }
-  }, [params, setParams, can])
+    if (!addRequested) return
+    params.delete('add')
+    setParams(params, { replace: true })
+  }, [addRequested, params, setParams])
 
   const del = useMutation({
     mutationFn: (id: number) => api.del(`/instances/${id}`),

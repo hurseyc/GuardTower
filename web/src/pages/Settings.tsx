@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { api, type CollectorState, type Overview, type SettingsResponse } from '@/lib/api'
@@ -6,6 +6,7 @@ import { fmtNum, timeAgo } from '@/lib/utils'
 import { PageHeader } from '@/components/AppShell'
 import { NotifyTargetsCard } from '@/components/NotifyTargets'
 import { Badge, Button, Card, CardHeader, Field, Input, StatusDot, Switch, Table, Td, Th, Tip } from '@/components/ui'
+import { useOnChange } from '@/lib/useOnChange'
 
 function fmtBytes(n: number) {
   if (n < 1024) return `${n} B`
@@ -25,12 +26,12 @@ export function SettingsPage() {
   const { data: overview } = useQuery({ queryKey: ['overview'], queryFn: () => api.get<Overview>('/overview') })
   const [raw, setRaw] = useState('')
   const [roll, setRoll] = useState('')
-  useEffect(() => {
-    if (data) {
-      setRaw(data.settings['retention.querylog_days'])
-      setRoll(data.settings['retention.rollup_days'])
+  useOnChange(data, (d) => {
+    if (d) {
+      setRaw(d.settings['retention.querylog_days'])
+      setRoll(d.settings['retention.rollup_days'])
     }
-  }, [data])
+  })
   const save = useMutation({
     mutationFn: () => api.put<SettingsResponse>('/settings', { 'retention.querylog_days': raw, 'retention.rollup_days': roll }),
     onSuccess: (d) => {

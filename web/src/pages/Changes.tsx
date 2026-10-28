@@ -1,39 +1,25 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { AlertTriangle, ArrowUpCircle, CheckCircle2, CircleDashed, Eye, Loader2, Rocket, RotateCcw, ShieldCheck, SkipForward, XCircle } from 'lucide-react'
 import { api, type ConfigSection, type Overview, type Plan, type Rollout, type RolloutStep } from '@/lib/api'
 import { describe } from '@/lib/configMerge'
-import { onServerEvent } from '@/lib/events'
-import { useSession } from '@/lib/session'
+import { useSession } from '@/lib/sessionContext'
 import { cn, fmtDateTime, timeAgo } from '@/lib/utils'
 import { PageHeader } from '@/components/AppShell'
-import { TargetSelect, parseTarget, targetParam } from '@/components/TargetSelect'
+import { TargetSelect } from '@/components/TargetSelect'
+import { targetParam } from '@/lib/target'
+import { parseTarget } from '@/lib/target'
 import { Badge, Button, Card, CardHeader, ConfirmDialog, EmptyState, Select, Skeleton, Table, Td, Th } from '@/components/ui'
+import { useOnChange } from '@/lib/useOnChange'
+import { useRolloutEvents } from '@/lib/rollouts'
 
 const rolloutTone = { running: 'info', succeeded: 'ok', failed: 'danger', rolled_back: 'warn', cancelled: 'neutral' } as const
 const rolloutLabel = { running: 'Running', succeeded: 'Succeeded', failed: 'Failed', rolled_back: 'Rolled back', cancelled: 'Cancelled' }
 
 export function RolloutBadge({ status }: { status: Rollout['status'] }) {
   return <Badge tone={rolloutTone[status]}>{rolloutLabel[status]}</Badge>
-}
-
-/** Live-refresh rollout queries on server events. */
-export function useRolloutEvents() {
-  const qc = useQueryClient()
-  useEffect(
-    () =>
-      onServerEvent((type) => {
-        if (type !== 'rollout.update') return
-        void qc.invalidateQueries({ queryKey: ['rollouts'] })
-        void qc.invalidateQueries({ queryKey: ['rollout'] })
-        void qc.invalidateQueries({ queryKey: ['sync'] })
-        void qc.invalidateQueries({ queryKey: ['instance-config'] })
-        void qc.invalidateQueries({ queryKey: ['upgrades'] })
-      }),
-    [qc],
-  )
 }
 
 export function ChangesPage() {
@@ -94,7 +80,7 @@ export function ChangesPage() {
   })
 
   // Re-plan automatically when the target changes.
-  useEffect(() => setPlan(null), [params, section])
+  useOnChange(`${params.toString()}|${section}`, () => setPlan(null))
 
   const observe = list?.observe ?? true
   const busy = !!list?.active_id

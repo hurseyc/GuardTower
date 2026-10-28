@@ -7,7 +7,8 @@ import { allStatuses, statusMeta } from '@/lib/status'
 import { cn, colorFor, fmtDateTime, timeAgo } from '@/lib/utils'
 import { PageHeader } from '@/components/AppShell'
 import { Badge, Button, Card, EmptyState, Input, Select, Skeleton, Switch, Table, Td, Th, Tip } from '@/components/ui'
-import { FleetFilterBar, useFleetFilter } from './Analytics'
+import { FleetFilterBar } from './Analytics'
+import { useFleetFilter } from '@/lib/fleetFilter'
 import { useSearchParams } from 'react-router'
 
 export function StatusBadge({ status }: { status: QueryRow['status'] }) {

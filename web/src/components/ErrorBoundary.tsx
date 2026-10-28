@@ -2,15 +2,15 @@ import { Component, type ReactNode } from 'react'
 import { AlertTriangle } from 'lucide-react'
 
 /** Keeps one broken page from blanking the whole app; resets when `resetKey` changes. */
-export class ErrorBoundary extends Component<{ children: ReactNode; resetKey?: string }, { error: Error | null }> {
-  state = { error: null as Error | null }
+export class ErrorBoundary extends Component<{ children: ReactNode; resetKey?: string }, { error: Error | null; resetKey?: string }> {
+  state = { error: null as Error | null, resetKey: this.props.resetKey }
 
   static getDerivedStateFromError(error: Error) {
     return { error }
   }
 
-  componentDidUpdate(prev: { resetKey?: string }) {
-    if (prev.resetKey !== this.props.resetKey && this.state.error) this.setState({ error: null })
+  static getDerivedStateFromProps(props: { resetKey?: string }, state: { resetKey?: string }) {
+    return props.resetKey !== state.resetKey ? { error: null, resetKey: props.resetKey } : null
   }
 
   componentDidCatch(error: Error) {

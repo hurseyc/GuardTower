@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Camera, RotateCcw } from 'lucide-react'
 import { api, type Snapshot } from '@/lib/api'
-import { useSession } from '@/lib/session'
+import { useSession } from '@/lib/sessionContext'
 import { fmtDateTime, timeAgo } from '@/lib/utils'
 import { Badge, Button, Card, CardHeader, ConfirmDialog, Dialog, Field, Input, Skeleton, Table, Td, Th } from './ui'
 

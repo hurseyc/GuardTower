@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -13,20 +13,18 @@ import {
   type UpgradePlan,
   type UpgradePolicy,
 } from '@/lib/api'
-import { useSession } from '@/lib/session'
+import { useSession } from '@/lib/sessionContext'
 import { cn, colorFor, fmtDateTime, timeAgo } from '@/lib/utils'
 import { PageHeader } from '@/components/AppShell'
 import { Markdown } from '@/components/Markdown'
-import { TargetSelect, parseTarget, targetParam } from '@/components/TargetSelect'
+import { TargetSelect } from '@/components/TargetSelect'
+import { targetParam } from '@/lib/target'
+import { parseTarget } from '@/lib/target'
 import { Badge, Button, Card, CardHeader, ConfirmDialog, EmptyState, Input, Select, Skeleton, Table, Td, Th, Tip } from '@/components/ui'
-import { RolloutBadge, RolloutDetail, useRolloutEvents } from './Changes'
-
-export const driverLabel: Record<string, string> = {
-  builtin: 'Built-in updater',
-  docker: 'Docker',
-  ssh: 'SSH',
-  '': 'Not configured',
-}
+import { RolloutBadge, RolloutDetail } from './Changes'
+import { useRolloutEvents } from '@/lib/rollouts'
+import { useOnChange } from '@/lib/useOnChange'
+import { driverLabel } from '@/lib/labels'
 
 function StatusCell({ s }: { s: UpgradeInstanceState }) {
   if (!s.online) return <Badge tone="danger">offline</Badge>
@@ -105,7 +103,7 @@ export function UpgradesPage() {
       toast.error((e as Error).message)
     },
   })
-  useEffect(() => setPlan(null), [params, version])
+  useOnChange(`${params.toString()}|${version}`, () => setPlan(null))
 
   const pickInstance = (id: number) => {
     setParam('target', targetParam({ kind: 'instance', id } as RolloutTarget))
