@@ -37,8 +37,10 @@ Running more than one AdGuard Home for redundancy, or separate instances for dif
 - **Fleet upgrades of AdGuard Home.** Upgrade LXC, VM and Docker installs from one page, one instance at a time, with DNS health gates and automatic rollback (Docker via a socket proxy, or SSH), pinning, and optional maintenance windows per group.
 - **Family DNS.** See which person and device tried to reach adult (or gambling, VPN…) sites, when, and whether it was blocked, with attempts grouped per sitting, masked domains with audited reveal, bedtime flags, bypass signals (VPN, private DNS, devices going quiet), push alerts (ntfy, Discord, webhook), a weekly digest and a one-click Family profile for a group.
 - **Query-log warehouse & analytics.** Every query from every instance is stored and searchable in one place, with a live tail, long-term charts, top domains and clients, and a per-instance comparison.
+- **Proxmox-aware.** With a read-only API token, GuardTower knows which node runs each AdGuard Home container or VM and follows live migrations, so redundancy warnings match reality.
+- **Fits your stack.** Single sign-on over OIDC (roles from groups), Prometheus `/metrics`, settings as YAML for git, notifications to ntfy / Discord / webhooks, and an update banner with the right command for your install.
 
-> **Roadmap (in progress):** OIDC sign-in, Prometheus metrics, YAML export and a demo mode. See [the plan](docs/dev/PROGRESS.md).
+> **Next:** polish and accessibility for v1.0.0. See [the plan](docs/dev/PROGRESS.md).
 
 ## Quick start
 

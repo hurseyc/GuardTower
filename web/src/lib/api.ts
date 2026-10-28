@@ -596,3 +596,33 @@ export interface ImportResult {
   unchanged: number
   applied: boolean
 }
+
+export interface ProxmoxCluster {
+  id: number
+  name: string
+  url: string
+  token_id: string
+  has_secret: boolean
+  tls_skip_verify: boolean
+  created_at: number
+  last_sync_at?: number
+  last_error?: string
+}
+
+export interface ProxmoxGuest {
+  cluster_id: number
+  vmid: number
+  kind: 'lxc' | 'qemu'
+  name: string
+  node: string
+  status: string
+  ips: string[]
+  instance_id?: number
+  instance_name?: string
+}
+
+export interface ProxmoxSync {
+  guests: number
+  matched: number
+  moves: { instance_id: number; instance: string; from: string; to: string }[]
+}

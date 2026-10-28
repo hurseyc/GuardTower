@@ -18,6 +18,7 @@ import (
 	"github.com/hurseyc/guardtower/internal/family"
 	"github.com/hurseyc/guardtower/internal/fleet"
 	"github.com/hurseyc/guardtower/internal/notify"
+	"github.com/hurseyc/guardtower/internal/proxmox"
 	"github.com/hurseyc/guardtower/internal/querylog"
 	"github.com/hurseyc/guardtower/internal/resilience"
 	"github.com/hurseyc/guardtower/internal/rollout"
@@ -59,6 +60,7 @@ type App struct {
 	Rollout    *rollout.Service
 	Upgrade    *upgrade.Service
 	SelfUpdate *selfupdate.Checker
+	Proxmox    *proxmox.Service
 	Family     *family.Service
 	Notify     *notify.Service
 	Bus        *events.Bus
@@ -108,9 +110,11 @@ func NewWith(cfg Config, st *store.Store, box *crypto.Box) *App {
 	a.Upgrade.OnChanged = a.Poller.Kick
 	a.Notify = notify.New(st, box)
 	a.SelfUpdate = selfupdate.New(a.Upgrade.Releases.Enabled)
+	a.Proxmox = proxmox.New(st, box, fl, cfg.Log)
+	a.Proxmox.OnMoved = func(m []proxmox.Move) { bus.Publish("placement.changed", m) }
 	a.Family = family.New(st, fl, bus, a.Notify, cfg.Log)
 	a.server = api.New(api.Deps{
-		Log: cfg.Log, Store: st, Auth: a.Auth, Fleet: fl, Poller: a.Poller, QueryLog: ql, Config: cs, Rollout: a.Rollout, Upgrade: a.Upgrade, Resilience: resilience.New(fl), Family: a.Family, Notify: a.Notify, SelfUpdate: a.SelfUpdate, OIDC: oidcFor(cfg), Bus: bus,
+		Log: cfg.Log, Store: st, Auth: a.Auth, Fleet: fl, Poller: a.Poller, QueryLog: ql, Config: cs, Rollout: a.Rollout, Upgrade: a.Upgrade, Resilience: resilience.New(fl), Family: a.Family, Notify: a.Notify, SelfUpdate: a.SelfUpdate, OIDC: oidcFor(cfg), Proxmox: a.Proxmox, Bus: bus,
 		WebFS: cfg.WebFS, DocsFS: cfg.DocsFS, Proxies: cfg.TrustedProxy,
 		Features: map[string]bool{"demo": cfg.Demo}, MetricsToken: cfg.MetricsToken,
 	})
@@ -125,6 +129,7 @@ func (a *App) Start(ctx context.Context) {
 	go a.Config.RunChecks(ctx, 2*time.Minute)
 	go a.Upgrade.Run(ctx)
 	go a.SelfUpdate.Run(ctx)
+	go a.Proxmox.Run(ctx, 5*time.Minute)
 	go a.Family.Run(ctx, 30*time.Second)
 	go func() {
 		t := time.NewTicker(time.Hour)

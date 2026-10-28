@@ -22,6 +22,7 @@ const EVENT_TYPES = [
   'upgrade.update',
   'family.alert',
   'sync.changed',
+  'placement.changed',
 ]
 
 /** One EventSource for the whole app; invalidates queries on relevant events. */
@@ -66,6 +67,10 @@ export function useServerEvents(enabled: boolean) {
             void qc.invalidateQueries({ queryKey: ['sync'] })
           }
           if (t === 'upgrade.update') void qc.invalidateQueries({ queryKey: ['upgrades'] })
+          if (t === 'placement.changed' && Array.isArray(data)) {
+            for (const m of data as { instance: string; to: string }[]) toast.info(`${m.instance} now runs on ${m.to}`, { description: 'Placement updated from Proxmox' })
+            for (const k of ['instances', 'hosts', 'overview', 'resilience', 'proxmox']) void qc.invalidateQueries({ queryKey: [k] })
+          }
         })
       }
       es.onerror = () => {

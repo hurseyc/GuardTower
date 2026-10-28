@@ -14,8 +14,8 @@ This file is the single source of truth for resuming work. It is kept current at
 | M5 | AGH upgrades: release tracking, builtin/docker/ssh drivers, rolling upgrades | ✅ done |
 | M6 | SPOF scoring + warnings, topology map, visual analytics | ✅ done (Proxmox auto-mapping moved to M8) |
 | M7 | Family DNS: people/devices, categories, adult dashboard, alerts, Family profile | ✅ done |
-| M8 | Installers (install.sh, Proxmox helper), self-update, OIDC, metrics, YAML export, demo mode, Proxmox API mapping | ⏳ next |
-| M9 | Polish, accessibility pass, screenshots, v1.0.0 | ⬜ |
+| M8 | Installers (install.sh, Proxmox helper), self-update, OIDC, metrics, YAML export, demo mode, Proxmox API mapping | ✅ done |
+| M9 | Polish, accessibility pass, screenshots, v1.0.0 | ⏳ next |
 
 ## How to resume
 
@@ -96,13 +96,22 @@ cd web && PW_CHROMIUM_PATH=/opt/pw-browsers/chromium npx playwright test   # san
   - integration: real AGH blocks → an Adult attempt plus a bypass signal; the profile keeps existing filtering;
   - notify formats; e2e (person, assignment, masked reveal).
 
-## Next steps (M8: installers & ops)
+## M8 notes
 
-1. ✅ `install/install.sh` (arch detection, checksum + cosign verify, user, systemd unit, `--upgrade` / `--uninstall [--purge]`); CI job `installers` runs shellcheck and installs, upgrades and uninstalls in Debian 12 and Ubuntu 24.04 containers against a locally built archive. Release archives are now version-less (`guardtower_linux_amd64.tar.gz`), so `/releases/latest/download/` works.
-2. ✅ `install/proxmox-lxc.sh`: creates a Debian 12 LXC on a PVE host and runs install.sh inside. Dry-run tested with fake `pct`/`pveam`/`pvesh`.
-3. Self-update: a release check for GuardTower itself, an in-app banner, and in-place binary update for systemd installs.
-4. OIDC sign-in (`GT_OIDC_*` env vars, group → role mapping).
-5. ✅ Prometheus `/metrics`, enabled by `GT_METRICS_TOKEN` (bearer); never exports family data. Docs: `admin/monitoring.md`.
-6. YAML export/import of the desired config (base, groups, overrides).
-7. `--demo` mode with a seeded fake fleet, for screenshots and trying GuardTower out.
-8. Proxmox read-only API mapping of LXC/VM → node (moved from M6).
+- Installers: `install/install.sh` (checksum + cosign, systemd, `--upgrade` / `--uninstall [--purge]`), `install/proxmox-lxc.sh`; CI job `installers` (shellcheck, Debian 12 + Ubuntu 24.04). Release archives are version-less so `/releases/latest/download/` works.
+- `/metrics` (Prometheus, bearer `GT_METRICS_TOKEN`, no family data).
+- YAML export/import of all layers (`internal/config/export.go`, `GET|POST /config/yaml`, dry run + prune, groups/instances by name).
+- GuardTower update check (`internal/selfupdate`): every 12 h, gated by `upgrades.check_releases`; install method detection (docker / systemd / package / binary) with the matching command; admin banner. No in-app binary replacement, by design (needs root).
+- Demo mode (`internal/demo`, `serve --demo` / `GT_DEMO`): five in-process AGH simulators (HTTP API + DNS for health probes) with traffic that reacts to settings (parental, lists, user rules, services, safe search, rewrites); a week of history inserted directly, the last 2 h served by the simulators. Seeds hosts, groups, Base/Kids layers, a pending Safe Search change, people/devices. Observe mode off. `TestDemoFleet` applies the pending change end to end.
+- OIDC (`internal/auth/oidc.go`, `GT_OIDC_*`): auth-code + PKCE, state/nonce cookie, groups → role at every sign-in (refused when role groups are set and none match), never takes over a local account. `TestOIDCSignIn` uses a fake provider.
+- Proxmox (`internal/proxmox`, migration 0007): read-only token, `/cluster/resources`, LXC interfaces → static config fallback, QEMU guest agent; match by IP then name; creates node hosts; moves are audited (`proxmox.placement`) and pushed as `placement.changed`. Sync every 5 min + on save + on demand.
+- Fixes found on the way: 24 h summaries from hourly rollups were bucketed at 15 min (spiky chart); SQLite transactions now `_txlock=immediate` (a read-then-write tx could fail instantly with SQLITE_BUSY).
+
+## Next steps (M9: polish → v1.0.0)
+
+1. Fix the remaining `react(set-state-in-effect)` lint warnings (Config.tsx, Hosts.tsx dialogs, …).
+2. Accessibility pass (axe in Playwright for every route; keyboard paths; focus rings; colour contrast in both themes).
+3. Mobile layouts (sidebar sheet, tables → cards under `sm`).
+4. Empty states and first-run guidance everywhere; ⌘K actions.
+5. Screenshots / demo GIF for the README from demo mode (`guardtower serve --demo`); docs site (mkdocs) publish job.
+6. Review Dependabot PRs; cut v1.0.0 through release-please.

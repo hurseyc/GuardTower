@@ -31,6 +31,8 @@ Two DNS servers only give you redundancy if they can't fail together. GuardTower
 2. Enter a name, the type (Proxmox node, NAS, Docker host…) and optionally an address, a site and a power/UPS label.
 3. Edit each instance and choose its host under **Runs on host**.
 
+On Proxmox you can skip the manual steps: [connect Proxmox](../setup/proxmox-api.md) with a read-only token and GuardTower creates the node hosts and places each AdGuard Home container or VM itself, and moves it when you migrate the guest.
+
 Hosts with the same **Power / UPS** value are treated as one power failure domain.
 
 ## Example

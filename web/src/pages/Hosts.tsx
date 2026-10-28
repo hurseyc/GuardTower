@@ -6,6 +6,7 @@ import { api, type Host, type HostKind, type Overview, type Site } from '@/lib/a
 import { useSession } from '@/lib/session'
 import { PageHeader } from '@/components/AppShell'
 import { useResilience } from '@/components/Resilience'
+import { ProxmoxCard } from '@/components/ProxmoxCard'
 import { Badge, Button, Card, CardHeader, ConfirmDialog, Dialog, EmptyState, Field, Input, Select, StatusDot, Textarea } from '@/components/ui'
 
 const kinds: { value: HostKind; label: string }[] = [
@@ -140,6 +141,7 @@ export function HostsPage() {
             <strong className="text-fg">Not assigned to a host:</strong> {unassigned.map((i) => i.name).join(', ')}. Edit an instance to set its host.
           </Card>
         )}
+        <ProxmoxCard admin={can('admin')} />
         <Card>
           <CardHeader title="Sites" description="Optional: physical locations (home, office, cabin). Used for site-level redundancy checks." />
           <div className="flex flex-wrap gap-2 px-5 pb-5">
