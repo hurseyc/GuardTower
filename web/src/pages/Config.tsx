@@ -2,12 +2,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Boxes, Download, Globe, Layers, Plus, ShieldCheck, Trash2, Undo2 } from 'lucide-react'
+import { Boxes, Download, FileDown, FileUp, Globe, Layers, Plus, ShieldCheck, Trash2, Undo2 } from 'lucide-react'
 import { api, type ConfigField, type ConfigSection, type LayerDoc, type LayerInfo, type Overview } from '@/lib/api'
 import { fmtValue, keyOf, mergeLayers } from '@/lib/configMerge'
 import { useSession } from '@/lib/session'
 import { cn, colorFor, timeAgo } from '@/lib/utils'
 import { PageHeader } from '@/components/AppShell'
+import { YamlImportDialog } from '@/components/YamlDialog'
 import { Badge, Button, Card, Dialog, Field, Input, Select, Skeleton, Switch, Textarea } from '@/components/ui'
 
 type ScopeSel = { scope: 'base' | 'group' | 'instance'; id: number }
@@ -27,6 +28,7 @@ export function ConfigPage() {
   const sel = parseScope(params.get('scope'))
   const sectionKey = params.get('section') ?? 'dns'
   const [importOpen, setImportOpen] = useState(false)
+  const [yamlOpen, setYamlOpen] = useState(false)
 
   const { data: schema } = useQuery({ queryKey: ['config-schema'], queryFn: () => api.get<ConfigSection[]>('/config/schema'), staleTime: Infinity })
   const { data: overview } = useQuery({ queryKey: ['overview'], queryFn: () => api.get<Overview>('/overview') })
@@ -63,12 +65,21 @@ export function ConfigPage() {
         title="Configuration"
         description="Desired AdGuard Home settings, layered: Base applies to every instance, groups add or override, and single instances can have exceptions."
         actions={
-          can('admin') &&
-          sel.scope !== 'instance' && (
-            <Button variant="outline" onClick={() => setImportOpen(true)}>
-              <Download className="h-4 w-4" /> Import from an instance
-            </Button>
-          )
+          <>
+            <a href="/api/v1/config/yaml" download className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-muted hover:bg-hover hover:text-fg">
+              <FileDown className="h-4 w-4" /> Export YAML
+            </a>
+            {can('admin') && (
+              <Button variant="ghost" onClick={() => setYamlOpen(true)}>
+                <FileUp className="h-4 w-4" /> Import YAML
+              </Button>
+            )}
+            {can('admin') && sel.scope !== 'instance' && (
+              <Button variant="outline" onClick={() => setImportOpen(true)}>
+                <Download className="h-4 w-4" /> Import from an instance
+              </Button>
+            )}
+          </>
         }
       />
       <div className="grid gap-6 p-6 lg:grid-cols-[15rem_14rem_1fr]">
@@ -132,6 +143,7 @@ export function ConfigPage() {
           <Skeleton className="h-96" />
         )}
       </div>
+      <YamlImportDialog open={yamlOpen} onOpenChange={setYamlOpen} schema={schema} />
       {overview && schema && <ImportDialog open={importOpen} onOpenChange={setImportOpen} overview={overview} schema={schema} target={sel} targetName={scopeName} />}
     </>
   )

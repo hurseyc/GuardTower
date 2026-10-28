@@ -256,6 +256,11 @@ func (s *Store) Summarize(ctx context.Context, f Filter, topN int) (*Summary, er
 	default:
 		sum.BucketMs = 6 * 3600 * 1000
 	}
+	if useRollups && sum.BucketMs < 3600*1000 {
+		// Rollups are hourly: finer buckets would put each hour's queries in
+		// one bucket and leave the others empty.
+		sum.BucketMs = 3600 * 1000
+	}
 
 	f, err := s.resolve(ctx, f)
 	if err != nil {

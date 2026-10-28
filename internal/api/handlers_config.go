@@ -1,6 +1,8 @@
 package api
 
 import (
+	"errors"
+	"io"
 	"net/http"
 	"strconv"
 
@@ -111,4 +113,41 @@ func (s *Server) handleListSync(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleCheckSync(w http.ResponseWriter, r *http.Request) {
 	s.kickSync()
 	writeJSON(w, 202, map[string]bool{"ok": true})
+}
+
+func (s *Server) handleExportYAML(w http.ResponseWriter, r *http.Request) {
+	b, err := s.Config.ExportYAML(r.Context())
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/yaml; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="guardtower-settings.yaml"`)
+	_, _ = w.Write(b)
+}
+
+// handleImportYAML takes the raw YAML body. ?dry_run=1 only reports what
+// would change; ?prune=1 also deletes layers the file doesn't mention.
+func (s *Server) handleImportYAML(w http.ResponseWriter, r *http.Request) {
+	data, err := io.ReadAll(io.LimitReader(r.Body, 4<<20))
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	dry, prune := r.URL.Query().Get("dry_run") == "1", r.URL.Query().Get("prune") == "1"
+	u := userFrom(r.Context())
+	res, err := s.Config.ImportYAML(r.Context(), data, dry, prune, u.Username)
+	if err != nil {
+		var ie *config.ImportError
+		if errors.As(err, &ie) {
+			writeErr(w, http.StatusBadRequest, ie.Msg)
+			return
+		}
+		s.fail(w, r, err)
+		return
+	}
+	if res.Applied {
+		s.audit(r, "config.import_yaml", "settings layers", map[string]any{"changes": len(res.Changes), "prune": prune})
+	}
+	writeJSON(w, 200, res)
 }

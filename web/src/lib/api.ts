@@ -16,14 +16,14 @@ export class ApiError extends Error {
 
 type Method = 'GET' | 'POST' | 'PUT' | 'DELETE'
 
-async function request<T>(method: Method, path: string, body?: unknown): Promise<T> {
+async function request<T>(method: Method, path: string, body?: unknown, rawType?: string): Promise<T> {
   const headers: Record<string, string> = { Accept: 'application/json' }
-  if (body !== undefined) headers['Content-Type'] = 'application/json'
+  if (body !== undefined) headers['Content-Type'] = rawType ?? 'application/json'
   if (method !== 'GET' && csrfToken) headers['X-CSRF-Token'] = csrfToken
   const res = await fetch(`/api/v1${path}`, {
     method,
     headers,
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: body === undefined ? undefined : rawType ? String(body) : JSON.stringify(body),
     credentials: 'same-origin',
   })
   const text = await res.text()
@@ -49,6 +49,8 @@ export const api = {
   post: <T>(p: string, b?: unknown) => request<T>('POST', p, b ?? {}),
   put: <T>(p: string, b?: unknown) => request<T>('PUT', p, b ?? {}),
   del: <T>(p: string) => request<T>('DELETE', p),
+  /** POST a non-JSON body (e.g. YAML); the response is still JSON. */
+  postRaw: <T>(p: string, body: string, type: string) => request<T>('POST', p, body, type),
 }
 
 // ---- shared API types ----
@@ -580,4 +582,47 @@ export interface NotifyTarget {
   enabled: boolean
   family: boolean
   created_at: number
+}
+
+export interface ImportChange {
+  scope: 'base' | 'group' | 'instance'
+  name?: string
+  section: string
+  action: 'create' | 'update' | 'delete'
+}
+
+export interface ImportResult {
+  changes: ImportChange[]
+  unchanged: number
+  applied: boolean
+}
+
+export interface ProxmoxCluster {
+  id: number
+  name: string
+  url: string
+  token_id: string
+  has_secret: boolean
+  tls_skip_verify: boolean
+  created_at: number
+  last_sync_at?: number
+  last_error?: string
+}
+
+export interface ProxmoxGuest {
+  cluster_id: number
+  vmid: number
+  kind: 'lxc' | 'qemu'
+  name: string
+  node: string
+  status: string
+  ips: string[]
+  instance_id?: number
+  instance_name?: string
+}
+
+export interface ProxmoxSync {
+  guests: number
+  matched: number
+  moves: { instance_id: number; instance: string; from: string; to: string }[]
 }

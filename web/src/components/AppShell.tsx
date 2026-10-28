@@ -15,6 +15,7 @@ import { Markdown } from './Markdown'
 import { Logo } from './Logo'
 import { ChangePasswordDialog } from './ChangePasswordDialog'
 import { ErrorBoundary } from './ErrorBoundary'
+import { UpdateBanner } from './UpdateBanner'
 
 type Theme = 'light' | 'dark' | 'system'
 
@@ -206,6 +207,7 @@ export function AppShell() {
             </DropdownMenu.Root>
           </div>
         </header>
+        {can('admin') && <UpdateBanner />}
         <main className="min-h-0 flex-1 overflow-y-auto">
           <ErrorBoundary resetKey={loc.pathname}>
             <Outlet />

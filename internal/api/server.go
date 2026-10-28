@@ -17,9 +17,11 @@ import (
 	"github.com/hurseyc/guardtower/internal/family"
 	"github.com/hurseyc/guardtower/internal/fleet"
 	"github.com/hurseyc/guardtower/internal/notify"
+	"github.com/hurseyc/guardtower/internal/proxmox"
 	"github.com/hurseyc/guardtower/internal/querylog"
 	"github.com/hurseyc/guardtower/internal/resilience"
 	"github.com/hurseyc/guardtower/internal/rollout"
+	"github.com/hurseyc/guardtower/internal/selfupdate"
 	"github.com/hurseyc/guardtower/internal/store"
 	"github.com/hurseyc/guardtower/internal/upgrade"
 )
@@ -38,6 +40,9 @@ type Deps struct {
 	Resilience *resilience.Service
 	Family     *family.Service
 	Notify     *notify.Service
+	SelfUpdate *selfupdate.Checker // nil disables the GuardTower update check
+	OIDC       *auth.OIDC          // nil when single sign-on isn't configured
+	Proxmox    *proxmox.Service
 	Bus        *events.Bus
 	WebFS      fs.FS // built SPA (index.html at root); nil serves a placeholder
 	DocsFS     fs.FS // markdown docs
@@ -71,6 +76,8 @@ func New(d Deps) *Server {
 		r.Get("/setup", s.handleSetupStatus)
 		r.Post("/setup", s.handleSetup)
 		r.Post("/auth/login", s.handleLogin)
+		r.Get("/auth/oidc/login", s.handleOIDCLogin)
+		r.Get("/auth/oidc/callback", s.handleOIDCCallback)
 		r.Get("/docs", s.handleDocsIndex)
 		r.Get("/docs/*", s.handleDocPage)
 
@@ -86,6 +93,7 @@ func New(d Deps) *Server {
 			r.Get("/instances/{id}", s.handleGetInstance)
 			r.Get("/groups", s.handleListGroups)
 			r.Get("/hosts", s.handleListHosts)
+			r.Get("/proxmox", s.handleListProxmox)
 			r.Get("/sites", s.handleListSites)
 			r.Get("/overview", s.handleOverview)
 			r.Get("/querylog", s.handleQueryLog)
@@ -101,7 +109,9 @@ func New(d Deps) *Server {
 			r.Get("/instances/{id}/snapshots", s.handleListSnapshots)
 			r.Get("/snapshots/{sid}", s.handleGetSnapshot)
 			r.Get("/upgrades", s.handleUpgradeOverview)
+			r.Get("/updates/guardtower", s.handleSelfUpdate)
 			r.Get("/resilience", s.handleResilience)
+			r.Get("/config/yaml", s.handleExportYAML)
 			r.Post("/resilience/preview", s.handleResiliencePreview)
 			r.Get("/instances/{id}/upgrade-config", s.handleGetUpgradeConfig)
 
@@ -147,6 +157,11 @@ func New(d Deps) *Server {
 				r.Post("/groups", s.handleSaveGroup)
 				r.Put("/groups/{id}", s.handleSaveGroup)
 				r.Delete("/groups/{id}", s.handleDeleteGroup)
+				r.Post("/proxmox", s.handleSaveProxmox)
+				r.Put("/proxmox/{id}", s.handleSaveProxmox)
+				r.Delete("/proxmox/{id}", s.handleDeleteProxmox)
+				r.Post("/proxmox/test", s.handleTestProxmox)
+				r.Post("/proxmox/{id}/sync", s.handleSyncProxmox)
 				r.Put("/groups/{id}/members", s.handleSetGroupMembers)
 				r.Put("/groups/{id}/upgrade-policy", s.handlePutUpgradePolicy)
 				r.Put("/instances/{id}/upgrade-config", s.handlePutUpgradeConfig)
@@ -170,6 +185,7 @@ func New(d Deps) *Server {
 				r.Delete("/notify/targets/{id}", s.handleDeleteTarget)
 				r.Post("/notify/targets/{id}/test", s.handleTestTarget)
 				r.Put("/config/layers/{scope}/{scopeID}/{section}", s.handlePutLayer)
+				r.Post("/config/yaml", s.handleImportYAML)
 				r.Post("/config/import", s.handleImportBaseline)
 				r.Put("/settings", s.handlePutSettings)
 			})

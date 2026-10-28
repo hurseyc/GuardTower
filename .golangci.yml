@@ -41,7 +41,7 @@ linters:
         linters: [gosec, noctx, bodyclose, unparam]
       # Query builders concatenate only fixed SQL fragments and "?" placeholders;
       # every user-supplied value is passed as a bound argument.
-      - path: (internal/querylog|internal/family|internal/notify)/
+      - path: (internal/querylog|internal/family|internal/notify|internal/proxmox)/
         linters: [gosec]
         text: G202
       - path: (cmd/gtdev|internal/devfleet|internal/upgrade/dockerfake)/

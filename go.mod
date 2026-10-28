@@ -3,11 +3,15 @@ module github.com/hurseyc/guardtower
 go 1.26.0
 
 require (
+	github.com/coreos/go-oidc/v3 v3.20.0
 	github.com/go-chi/chi/v5 v5.5.0
+	github.com/go-jose/go-jose/v4 v4.1.4
 	github.com/miekg/dns v1.1.73
 	golang.org/x/crypto v0.58.0
 	golang.org/x/net v0.60.0
+	golang.org/x/oauth2 v0.37.0
 	golang.org/x/term v0.47.0
+	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.61.0
 )
 
