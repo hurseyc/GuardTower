@@ -179,3 +179,35 @@ test.describe.serial('resilience and topology', () => {
     await expect(page).toHaveURL(/\/instances\/\d+/)
   })
 })
+
+test.describe.serial('family dns', () => {
+  test('a person gets their devices attempts, masked with reveal', async ({ page }) => {
+    test.setTimeout(120_000)
+    await signIn(page)
+    await page.getByRole('link', { name: 'Family DNS' }).click()
+    await expect(page.getByRole('heading', { name: 'Family DNS' })).toBeVisible()
+    await page.getByRole('link', { name: 'People & devices', exact: true }).click()
+    await page.getByRole('button', { name: 'Add person' }).click()
+    await page.getByRole('dialog').getByLabel('Name').fill('Sam')
+    await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click()
+    await expect(page.getByText('Sam added')).toBeVisible()
+    // The traffic test earlier sent adult-site lookups from 127.0.0.1; sessions
+    // are built every 30 s.
+    await expect(async () => {
+      await page.reload()
+      await expect(page.getByLabel(/Owner of /).first()).toBeVisible({ timeout: 2000 })
+    }).toPass({ timeout: 60_000 })
+    await page.getByLabel(/Owner of /).first().selectOption({ label: 'Sam' })
+    await expect(page.getByText('Device updated')).toBeVisible()
+    await page.getByRole('navigation', { name: 'Family DNS sections' }).getByRole('link', { name: 'Overview' }).click()
+    await expect(async () => {
+      await page.reload()
+      await expect(page.getByRole('link', { name: /Sam/ }).getByText(/^[1-9]\d*$/).first()).toBeVisible({ timeout: 2000 })
+    }).toPass({ timeout: 60_000 })
+    await page.getByRole('link', { name: /Sam/ }).first().click()
+    const masked = page.getByText(/^[a-z]\*\*\*/).first()
+    await expect(masked).toBeVisible()
+    await page.getByRole('button', { name: /Reveal domain/ }).first().click()
+    await expect(page.getByRole('button', { name: 'Hide domain' })).toBeVisible()
+  })
+})

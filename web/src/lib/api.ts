@@ -463,3 +463,121 @@ export interface UpgradeTestResult {
   host_key?: { key: string; fingerprint: string }
   pinned: boolean
 }
+
+// ---- Family DNS ----
+
+export type FamilyCategory = 'adult' | 'gambling' | 'bypass' | 'social' | 'gaming' | 'malware' | 'safesearch' | 'ads'
+
+export interface FamilyDevice {
+  id: number
+  person_id: number
+  device: string
+  label: string
+}
+
+export interface Person {
+  id: number
+  name: string
+  emoji: string
+  color: string
+  devices: FamilyDevice[]
+  created_at: number
+}
+
+export interface FamilyEvent {
+  id: number
+  device: string
+  device_name: string
+  person_id?: number
+  person?: string
+  instance_id: number
+  category: FamilyCategory
+  domain: string
+  masked: boolean
+  first_ts: number
+  last_ts: number
+  count: number
+  blocked: boolean
+  late_night: boolean
+}
+
+export interface CategoryCount {
+  category: FamilyCategory
+  attempts: number
+  hits: number
+  allowed: number
+}
+
+export interface FamilySummary {
+  person_id: number
+  name: string
+  emoji?: string
+  color?: string
+  devices: number
+  categories: CategoryCount[]
+  adult: number
+  late_night: number
+  last_attempt?: number
+  last_category?: FamilyCategory
+}
+
+export interface FamilySignal {
+  kind: 'bypass' | 'quiet' | 'unprotected' | 'allowed'
+  severity: 'info' | 'warn'
+  person_id?: number
+  person?: string
+  device?: string
+  device_name?: string
+  instance_id?: number
+  message: string
+  count?: number
+  last_ts?: number
+}
+
+export interface FamilyOverview {
+  from: number
+  to: number
+  people: FamilySummary[]
+  unassigned: FamilySummary
+  signals: FamilySignal[]
+  bedtime: string
+  masked: boolean
+  totals: { adult: number; adult_hits: number; allowed: number; late_night: number; safe_search: number }
+}
+
+export interface FamilyDetail extends Omit<FamilySummary, 'devices'> {
+  devices: { device: string; label: string; attempts: number; last_seen?: number }[]
+  heatmap: number[][]
+  daily: { day: number; count: Partial<Record<FamilyCategory, number>> }[]
+  top: { event_id: number; domain: string; masked: boolean; category: FamilyCategory; attempts: number; hits: number; allowed: number }[]
+  events: FamilyEvent[]
+  signals: FamilySignal[]
+}
+
+export interface FamilyClient {
+  device: string
+  name: string
+  queries: number
+  last_seen: number
+  person_id?: number
+  events: number
+}
+
+export interface FamilyList {
+  url: string
+  name: string
+  category: FamilyCategory
+  explicit: boolean
+  instances: number[]
+}
+
+export interface NotifyTarget {
+  id: number
+  name: string
+  kind: 'ntfy' | 'discord' | 'webhook'
+  url: string
+  has_token: boolean
+  enabled: boolean
+  family: boolean
+  created_at: number
+}

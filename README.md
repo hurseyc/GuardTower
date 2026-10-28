@@ -35,9 +35,10 @@ Running more than one AdGuard Home for redundancy, or separate instances for dif
 
 - **Layered settings sync with drift detection.** Import a baseline from any instance, see where every value comes from, and get warned when someone edits an instance by hand.
 - **Fleet upgrades of AdGuard Home.** Upgrade LXC, VM and Docker installs from one page, one instance at a time, with DNS health gates and automatic rollback (Docker via a socket proxy, or SSH), pinning, and optional maintenance windows per group.
+- **Family DNS.** See which person and device tried to reach adult (or gambling, VPN…) sites, when, and whether it was blocked, with attempts grouped per sitting, masked domains with audited reveal, bedtime flags, bypass signals (VPN, private DNS, devices going quiet), push alerts (ntfy, Discord, webhook), a weekly digest and a one-click Family profile for a group.
 - **Query-log warehouse & analytics.** Every query from every instance is stored and searchable in one place, with a live tail, long-term charts, top domains and clients, and a per-instance comparison.
 
-> **Roadmap (in progress):** a **Family DNS** section with per-person insight into blocked adult content. See [the plan](docs/dev/PROGRESS.md).
+> **Roadmap (in progress):** one-line installers (Proxmox LXC helper, install.sh), OIDC sign-in, Prometheus metrics and a demo mode. See [the plan](docs/dev/PROGRESS.md).
 
 ## Quick start
 

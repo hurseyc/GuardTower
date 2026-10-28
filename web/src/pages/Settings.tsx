@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { api, type CollectorState, type Overview, type SettingsResponse } from '@/lib/api'
 import { fmtNum, timeAgo } from '@/lib/utils'
 import { PageHeader } from '@/components/AppShell'
+import { NotifyTargetsCard } from '@/components/NotifyTargets'
 import { Badge, Button, Card, CardHeader, Field, Input, StatusDot, Switch, Table, Td, Th, Tip } from '@/components/ui'
 
 function fmtBytes(n: number) {
@@ -52,7 +53,7 @@ export function SettingsPage() {
 
   return (
     <>
-      <PageHeader title="Settings" description="Safety mode, data retention and collection health." />
+      <PageHeader title="Settings" description="Safety mode, notifications, data retention and collection health." />
       <div className="grid gap-6 p-6 xl:grid-cols-3">
         <Card className="xl:col-span-3">
           <CardHeader
@@ -66,6 +67,7 @@ export function SettingsPage() {
             </label>
           </div>
         </Card>
+        <NotifyTargetsCard />
         <Card className="xl:col-span-1">
           <CardHeader title="Data retention" description="Older data is pruned automatically every hour." />
           <form className="space-y-4 px-5 pb-5" onSubmit={(e) => (e.preventDefault(), save.mutate())}>

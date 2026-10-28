@@ -187,8 +187,11 @@ var settingDefs = map[string]struct {
 
 // SettingKeys returns the editable setting keys (used by the docs test).
 func SettingKeys() []string {
-	keys := make([]string, 0, len(settingDefs))
+	keys := make([]string, 0, len(settingDefs)+len(familySettingDefs))
 	for k := range settingDefs {
+		keys = append(keys, k)
+	}
+	for k := range familySettingDefs {
 		keys = append(keys, k)
 	}
 	return keys

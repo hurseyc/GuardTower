@@ -40,6 +40,7 @@ GuardTower **starts in observe mode**: it reads from your instances but never ch
 3. [Adding instances](setup/adding-instances.md): connect your AdGuard Home servers.
 4. [Groups](operation/groups.md): split instances into groups with different settings, and check their [redundancy](operation/resilience.md) on the [topology map](operation/topology.md).
 5. [Configuration](operation/configuration.md) and [Review & apply](operation/changes.md): manage settings centrally and roll them out safely.
-6. [Upgrade methods](setup/upgrade-methods.md) and [Upgrading AdGuard Home](operation/upgrades.md): keep every instance current.
+6. [Family DNS](operation/family.md): see who tries to reach adult sites, when, and get alerts.
+7. [Upgrade methods](setup/upgrade-methods.md) and [Upgrading AdGuard Home](operation/upgrades.md): keep every instance current.
 
 Press <kbd>?</kbd> on any screen to open the help page for that screen, or <kbd>⌘K</kbd> / <kbd>Ctrl K</kbd> to search everything.

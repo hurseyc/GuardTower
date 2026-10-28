@@ -13,8 +13,8 @@ This file is the single source of truth for resuming work. It is kept current at
 | M4 | Plan/Apply, snapshots, canary, auto-rollback, history/restore | ✅ done |
 | M5 | AGH upgrades: release tracking, builtin/docker/ssh drivers, rolling upgrades | ✅ done |
 | M6 | SPOF scoring + warnings, topology map, visual analytics | ✅ done (Proxmox auto-mapping moved to M8) |
-| M7 | Family DNS: people/devices, categories, adult dashboard, alerts, Family profile | ⏳ next |
-| M8 | Installers (install.sh, Proxmox helper), self-update, OIDC, notifications, metrics, YAML export, demo mode | ⬜ |
+| M7 | Family DNS: people/devices, categories, adult dashboard, alerts, Family profile | ✅ done |
+| M8 | Installers (install.sh, Proxmox helper), self-update, OIDC, metrics, YAML export, demo mode, Proxmox API mapping | ⏳ next |
 | M9 | Polish, accessibility pass, screenshots, v1.0.0 | ⬜ |
 
 ## How to resume
@@ -81,13 +81,28 @@ cd web && PW_CHROMIUM_PATH=/opt/pw-browsers/chromium npx playwright test   # san
 - Docs: `operation/resilience.md`, `operation/topology.md`; analytics, hosts, groups and index updated.
 - Deferred: Proxmox read-only API mapping (LXC/VM → node), moved to M8 with the installers.
 
-## Next steps (M7: Family DNS)
+## M7 notes
 
-1. People & devices: `people` table (name, colour, avatar emoji) and `person_devices` (client IP, MAC or ClientID, optionally linked to AGH persistent clients). An "Unassigned devices" inbox from recent query-log clients. Gate the section with the existing `family_access` user flag (`users.family_access`).
-2. Categories: map blocked queries to Adult / Gambling / Social / Gaming / Malware / VPN-Proxy / Ads-Tracking from `reason` (FilteredParental → Adult) plus `filter_id` → category mappings. Pre-map well-known NSFW lists by URL (HaGeZi NSFW, OISD NSFW, StevenBlack porn), editable; custom rules can be tagged.
-3. Attempt sessions: collapse bursts per device+category (gap of 5 min or less) into sessions with first/last/count. Use a `family_events` table built by the collector, with its own retention (`retention.family_days`, default 365).
-4. Adult dashboard (`/family`): attempts per person and device, a time-of-day heatmap with a bedtime window (`family.bedtime`), 7/30/90-day trends, top domains masked (`p***hub.com`) with click-to-reveal audited (`family.reveal`).
-5. Bypass signals: queries to DoH/DoT providers, VPN or proxy and Tor domains (a curated list); devices that go silent while others stay active; safe search not enforced in a device's group (from the config engine).
-6. Alerts & digest: notifier (ntfy / Discord / generic webhook) with per-person quiet hours, plus a weekly digest. Notification settings live under Settings.
-7. Family profile for a group: one click writes group layers (parental on, safe search enforced, recommended NSFW lists, block DoH/VPN services, optional blocked-service schedule). It goes through normal Review & apply.
-8. Docs: `operation/family.md`, `admin/notifications.md`. Tests: unit (classification, sessions), API, e2e with seeded adult-list hits from `gtdev traffic`.
+- `internal/family`:
+  - `categories.go`: categorisation from the AGH verdict (parental → adult, safebrowsing → malware, safe search), the blocked service, the filter-list category (per-instance `filter_id` → URL via `instance_lists`, guessed or set in `list_categories`), then built-in domain lists. Ads are excluded. Also `Mask`.
+  - `service.go`: session builder (cursor on `query_log.id`; same device+category+site within 5 min merged, robust to out-of-order rows), list sync, prune, `Run` loop.
+  - `people.go`, `dashboard.go` (overview, detail, events, reveal), `signals.go` (bypass / not blocked / went quiet / unprotected, merged per person), `alerts.go` (cooldown, quiet hours, digest), `profile.go` (Family profile into group layers; **imports live filtering first if it isn't managed**, otherwise the plan would remove existing lists).
+- `internal/notify`: ntfy / Discord / webhook targets, with sealed tokens.
+- API: `/family/*` behind `requireFamily` (admin or `family_access`); the profile is admin only; `/notify/targets*` admin. Family settings live in `familySettingDefs` (documented, gated by the docs test).
+- UI: `/family`, `/family/person/:id`, `/family/devices`, `/family/settings`; Notifications card under Settings; live `family.alert` toast for family users.
+- Tests:
+  - unit: categorise, mask, windows, sessions, overview/detail/digest, profile;
+  - API: gating, audited reveal that doesn't leak the domain, settings validation;
+  - integration: real AGH blocks → an Adult attempt plus a bypass signal; the profile keeps existing filtering;
+  - notify formats; e2e (person, assignment, masked reveal).
+
+## Next steps (M8: installers & ops)
+
+1. `install/install.sh` (arch detection, checksum + cosign verify, user, systemd unit, `--upgrade` / `--uninstall`), tested in Debian and Ubuntu containers in CI.
+2. `install/proxmox-lxc.sh`: creates a Debian 12 LXC and runs install.sh inside (community-scripts style).
+3. Self-update: a release check for GuardTower itself, an in-app banner, and in-place binary update for systemd installs.
+4. OIDC sign-in (`GT_OIDC_*` env vars, group → role mapping).
+5. Prometheus `/metrics` (fleet, query, rollout and collector gauges), with an optional token.
+6. YAML export/import of the desired config (base, groups, overrides).
+7. `--demo` mode with a seeded fake fleet, for screenshots and trying GuardTower out.
+8. Proxmox read-only API mapping of LXC/VM → node (moved from M6).
