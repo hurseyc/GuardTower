@@ -3,7 +3,7 @@
 # the Go binary is cross-compiled for each target, and the result runs on a
 # distroless base as a non-root user.
 
-FROM --platform=$BUILDPLATFORM node:22-alpine AS web
+FROM --platform=$BUILDPLATFORM node:26-alpine AS web
 WORKDIR /src/web
 COPY web/package.json web/package-lock.json ./
 RUN npm ci --no-audit --no-fund
