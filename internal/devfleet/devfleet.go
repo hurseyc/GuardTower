@@ -196,6 +196,20 @@ schema_version: 31
 	return os.WriteFile(path, []byte(yaml), 0o600)
 }
 
+// Stop terminates instance i (0-based) started under dir.
+func Stop(dir string, i int) {
+	m := filepath.Join(dir, "agh"+strconv.Itoa(i+1), "pid")
+	b, err := os.ReadFile(m) //nolint:gosec // path within our dir.
+	if err != nil {
+		return
+	}
+	pid, _ := strconv.Atoi(strings.TrimSpace(string(b)))
+	if p, err := os.FindProcess(pid); err == nil && pid > 0 {
+		_ = p.Signal(syscall.SIGTERM)
+	}
+	_ = os.Remove(m)
+}
+
 // StopAll terminates every instance started under dir.
 func StopAll(dir string, logf Logf) {
 	matches, _ := filepath.Glob(filepath.Join(dir, "agh*", "pid"))

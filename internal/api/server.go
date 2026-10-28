@@ -18,6 +18,7 @@ import (
 	"github.com/hurseyc/guardtower/internal/querylog"
 	"github.com/hurseyc/guardtower/internal/rollout"
 	"github.com/hurseyc/guardtower/internal/store"
+	"github.com/hurseyc/guardtower/internal/upgrade"
 )
 
 // Deps are the services the API depends on.
@@ -30,6 +31,7 @@ type Deps struct {
 	QueryLog *querylog.Store
 	Config   *config.Service
 	Rollout  *rollout.Service
+	Upgrade  *upgrade.Service
 	Bus      *events.Bus
 	WebFS    fs.FS // built SPA (index.html at root); nil serves a placeholder
 	DocsFS   fs.FS // markdown docs
@@ -88,6 +90,8 @@ func New(d Deps) *Server {
 			r.Get("/rollouts/{id}", s.handleGetRollout)
 			r.Get("/instances/{id}/snapshots", s.handleListSnapshots)
 			r.Get("/snapshots/{sid}", s.handleGetSnapshot)
+			r.Get("/upgrades", s.handleUpgradeOverview)
+			r.Get("/instances/{id}/upgrade-config", s.handleGetUpgradeConfig)
 
 			r.Group(func(r chi.Router) {
 				r.Use(requireRole(auth.RoleOperator))
@@ -98,6 +102,9 @@ func New(d Deps) *Server {
 				r.Post("/rollouts", s.handleStartRollout)
 				r.Post("/instances/{id}/snapshots", s.handleTakeSnapshot)
 				r.Post("/snapshots/{sid}/restore", s.handleRestoreSnapshot)
+				r.Post("/upgrades/check", s.handleUpgradeCheck)
+				r.Post("/upgrades/plan", s.handleUpgradePlan)
+				r.Post("/upgrades", s.handleUpgradeStart)
 			})
 
 			r.Group(func(r chi.Router) {
@@ -110,6 +117,10 @@ func New(d Deps) *Server {
 				r.Put("/groups/{id}", s.handleSaveGroup)
 				r.Delete("/groups/{id}", s.handleDeleteGroup)
 				r.Put("/groups/{id}/members", s.handleSetGroupMembers)
+				r.Put("/groups/{id}/upgrade-policy", s.handlePutUpgradePolicy)
+				r.Put("/instances/{id}/upgrade-config", s.handlePutUpgradeConfig)
+				r.Post("/instances/{id}/upgrade-config/test", s.handleTestUpgradeConfig)
+				r.Post("/instances/{id}/upgrade-config/pin", s.handlePinHostKey)
 				r.Post("/hosts", s.handleSaveHost)
 				r.Put("/hosts/{id}", s.handleSaveHost)
 				r.Delete("/hosts/{id}", s.handleDeleteHost)

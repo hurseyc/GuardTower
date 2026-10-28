@@ -11,6 +11,7 @@ import { Badge, Button, Card, CardHeader, Dialog, Select, Skeleton, StatusDot } 
 import { InstanceDialog } from '@/components/InstanceDialog'
 import { SyncCard } from '@/components/SyncCard'
 import { SnapshotsCard } from '@/components/SnapshotsCard'
+import { UpgradeCard } from '@/components/UpgradeCard'
 
 const runtimeLabel: Record<string, string> = {
   unknown: 'Not specified',
@@ -161,6 +162,7 @@ export function InstanceDetailPage() {
         </Card>
         <SyncCard instanceId={inst.id} />
         <SnapshotsCard instanceId={inst.id} instanceName={inst.name} />
+        <UpgradeCard instanceId={inst.id} />
       </div>
       <InstanceDialog open={edit} onOpenChange={setEdit} instance={inst} groups={ov?.groups ?? []} hosts={ov?.hosts ?? []} />
       <Dialog

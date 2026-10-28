@@ -15,7 +15,7 @@ CREATE TABLE rollouts (
     id          INTEGER PRIMARY KEY,
     created_at  INTEGER NOT NULL,
     created_by  TEXT    NOT NULL DEFAULT '',
-    kind        TEXT    NOT NULL DEFAULT 'apply' CHECK (kind IN ('apply', 'restore')),
+    kind        TEXT    NOT NULL DEFAULT 'apply' CHECK (kind IN ('apply', 'restore', 'upgrade')),
     target      TEXT    NOT NULL,   -- human description, e.g. "Group Kids VLAN"
     sections    TEXT    NOT NULL DEFAULT '[]',
     status      TEXT    NOT NULL,   -- running|succeeded|failed|rolled_back|cancelled

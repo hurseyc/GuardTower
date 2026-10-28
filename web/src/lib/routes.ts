@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react'
 import {
+  ArrowUpCircle,
   BarChart3,
   BookOpen,
   Boxes,
@@ -36,6 +37,7 @@ export const navRoutes: NavRoute[] = [
   { path: '/groups', label: 'Groups', icon: Boxes, doc: 'operation/groups', section: 'Fleet' },
   { path: '/hosts', label: 'Hosts & sites', icon: Server, doc: 'operation/hosts', section: 'Fleet' },
   { path: '/config', label: 'Configuration', icon: SlidersHorizontal, doc: 'operation/configuration', section: 'Change' },
+  { path: '/upgrades', label: 'Upgrades', icon: ArrowUpCircle, doc: 'operation/upgrades', section: 'Change' },
   { path: '/changes', label: 'Review & apply', icon: Rocket, doc: 'operation/changes', section: 'Change' },
   { path: '/analytics', label: 'Analytics', icon: BarChart3, doc: 'operation/analytics', section: 'Insights' },
   { path: '/logs', label: 'Query log', icon: ScrollText, doc: 'operation/query-log', section: 'Insights' },

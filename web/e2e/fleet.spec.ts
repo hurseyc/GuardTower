@@ -110,3 +110,31 @@ test.describe.serial('review & apply', () => {
     await expect(page.getByRole('switch', { name: /On: read-only/ })).toHaveAttribute('aria-checked', 'true')
   })
 })
+
+test.describe.serial('upgrades', () => {
+  test('upgrades page lists instances and saves a group policy', async ({ page }) => {
+    await signIn(page)
+    await page.getByRole('link', { name: 'Upgrades' }).click()
+    await expect(page.getByRole('heading', { name: 'AdGuard Home upgrades' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'agh-1' })).toBeVisible()
+    await page.getByLabel('Upgrade policy for Main network').selectOption('auto')
+    await page.getByRole('button', { name: 'Sun' }).first().click()
+    await page.getByRole('row', { name: /Main network/ }).getByRole('button', { name: 'Save' }).click()
+    await expect(page.getByText('Upgrade policy saved for Main network')).toBeVisible()
+    await page.reload()
+    await expect(page.getByLabel('Upgrade policy for Main network')).toHaveValue('auto')
+  })
+
+  test('instance page configures the Docker upgrade method', async ({ page }) => {
+    await signIn(page)
+    await page.getByRole('link', { name: 'Instances' }).click()
+    await page.getByRole('link', { name: 'agh-2' }).click()
+    await page.getByLabel('Upgrade method').selectOption('docker')
+    await page.getByLabel('Docker API endpoint').fill('tcp://127.0.0.1:1')
+    await page.getByLabel('Container name').fill('adguardhome')
+    await page.getByRole('button', { name: 'Test Docker connection' }).click()
+    await expect(page.getByText(/cannot reach the Docker API/)).toBeVisible()
+    await page.getByRole('button', { name: 'Save upgrade settings' }).click()
+    await expect(page.getByText('Upgrade settings saved')).toBeVisible()
+  })
+})

@@ -335,7 +335,7 @@ export interface Rollout {
   id: number
   created_at: number
   created_by: string
-  kind: 'apply' | 'restore'
+  kind: 'apply' | 'restore' | 'upgrade'
   target: string
   sections: string[]
   status: 'running' | 'succeeded' | 'failed' | 'rolled_back' | 'cancelled'
@@ -351,4 +351,115 @@ export interface Snapshot {
   kind: 'pre-apply' | 'post-apply' | 'manual' | 'pre-restore'
   rollout_id?: number
   note?: string
+}
+
+// ---- AdGuard Home upgrades ----
+
+export type UpgradeDriver = 'auto' | 'builtin' | 'docker' | 'ssh' | 'none'
+
+export interface Release {
+  tag: string
+  name: string
+  published_at: number
+  url: string
+  notes: string
+  prerelease: boolean
+}
+
+export interface UpgradeInstanceState {
+  instance_id: number
+  name: string
+  group_id?: number
+  online: boolean
+  version: string
+  configured: UpgradeDriver
+  driver: '' | 'builtin' | 'docker' | 'ssh'
+  can_autoupdate: boolean
+  builtin_version?: string
+  pinned?: string
+  target?: string
+  update_available: boolean
+  blocked?: string
+  check_error?: string
+  checked_at?: number
+}
+
+export interface UpgradeWindow {
+  days: number[]
+  start: string
+  end: string
+}
+
+export interface UpgradePolicy {
+  group_id: number
+  policy: 'manual' | 'auto'
+  window: UpgradeWindow
+  last_auto?: number
+}
+
+export interface UpgradeOverview {
+  latest?: Release
+  releases: Release[]
+  instances: UpgradeInstanceState[]
+  policies: UpgradePolicy[]
+  checks_enabled: boolean
+  checked_at?: number
+  check_error?: string
+  observe: boolean
+}
+
+export interface UpgradePlanItem {
+  instance_id: number
+  name: string
+  canary: boolean
+  online: boolean
+  driver: string
+  from: string
+  to?: string
+  skip?: string
+}
+
+export interface UpgradePlan {
+  target: string
+  version?: string
+  items: UpgradePlanItem[]
+  total: number
+  observe: boolean
+  warnings: string[]
+}
+
+export interface DockerConfig {
+  endpoint: string
+  container: string
+  image: string
+  tls_skip_verify: boolean
+  ca_pem: string
+  conf_path: string
+}
+
+export interface SSHConfig {
+  host: string
+  port: number
+  user: string
+  has_key: boolean
+  host_key: string
+  sudo: boolean
+  agh_dir: string
+  service: string
+}
+
+export interface UpgradeConfig {
+  instance_id: number
+  driver: UpgradeDriver
+  pinned_version: string
+  docker: DockerConfig
+  ssh: SSHConfig
+  updated_at?: number
+}
+
+export interface UpgradeTestResult {
+  ok: boolean
+  message: string
+  host_key?: { key: string; fingerprint: string }
+  pinned: boolean
 }

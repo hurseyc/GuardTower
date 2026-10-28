@@ -5,6 +5,7 @@
 //	go run ./cmd/gtdev fleet up      # start 5 AGH instances on 127.0.0.1
 //	go run ./cmd/gtdev seed          # register them with a running GuardTower
 //	go run ./cmd/gtdev traffic       # send a realistic query mix
+//	go run ./cmd/gtdev docker        # fake Docker API for trying Docker upgrades
 //	go run ./cmd/gtdev fleet down
 package main
 
@@ -51,6 +52,8 @@ func main() {
 		err = seed(os.Args[2:])
 	case "traffic":
 		err = traffic(os.Args[2:])
+	case "docker":
+		err = fakeDocker(os.Args[2:])
 	default:
 		usage()
 	}
@@ -61,7 +64,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: gtdev fleet up [-n 5] [-version v0.107.79] | fleet down | seed | traffic [-duration 30s]")
+	fmt.Fprintln(os.Stderr, "usage: gtdev fleet up [-n 5] [-version v0.107.79] | fleet down | seed | traffic [-duration 30s] | docker [-instance 5]")
 	os.Exit(2)
 }
 

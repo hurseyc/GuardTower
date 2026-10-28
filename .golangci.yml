@@ -19,6 +19,11 @@ linters:
         - (*database/sql.DB).Close
         - (*os.File).Close
         - (io/fs.File).Close
+        - (net.Conn).Close
+        - (net.Listener).Close
+        - (golang.org/x/crypto/ssh.Conn).Close
+        - (*golang.org/x/crypto/ssh.Session).Close
+        - (golang.org/x/crypto/ssh.Channel).Close
         - (*github.com/hurseyc/guardtower/internal/store.Store).Close
         - (*github.com/hurseyc/guardtower/internal/app.App).Close
     gosec:
@@ -39,7 +44,7 @@ linters:
       - path: internal/querylog/
         linters: [gosec]
         text: G202
-      - path: (cmd/gtdev|internal/devfleet)/
+      - path: (cmd/gtdev|internal/devfleet|internal/upgrade/dockerfake)/
         linters: [gosec, noctx]
 formatters:
   enable: [gofmt, goimports]
