@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/hurseyc/GuardTower/compare/v1.0.0...v1.1.0) (2026-10-28)
+
+
+### Features
+
+* one-click GuardTower updates, 8-character passwords, quieter Proxmox install ([#22](https://github.com/hurseyc/GuardTower/issues/22)) ([8bb2a31](https://github.com/hurseyc/GuardTower/commit/8bb2a313ce88d924efff7e03eaa9a13d3759610a))
+
 ## 1.0.0 (2026-10-28)
 
 
