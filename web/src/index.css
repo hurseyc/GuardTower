@@ -27,6 +27,22 @@
   --ring: #10b98155;
   --shadow: 0 1px 2px rgb(15 23 42 / 0.06), 0 1px 1px rgb(15 23 42 / 0.04);
   --shadow-lg: 0 10px 30px -10px rgb(15 23 42 / 0.25);
+  /* Chart palette (validated: dataviz validator, light surface #ffffff). Fixed order, never cycled. */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+  --series-6: #008300;
+  --series-7: #6250d6;
+  --series-8: #e34948;
+  --seq-0: #f3f7fd;
+  --seq-1: #cde2fb;
+  --seq-2: #86b6ef;
+  --seq-3: #3987e5;
+  --seq-4: #1c5cab;
+  --seq-5: #0d366b;
+  --grid: #eef0f4;
 }
 
 .dark {
@@ -51,6 +67,22 @@
   --ring: #34d39966;
   --shadow: 0 1px 2px rgb(0 0 0 / 0.4);
   --shadow-lg: 0 20px 40px -12px rgb(0 0 0 / 0.6);
+  /* Dark steps of the same hues (validated on surface #111827). */
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+  --series-6: #008300;
+  --series-7: #9085e9;
+  --series-8: #e66767;
+  --seq-0: #141c2b;
+  --seq-1: #104281;
+  --seq-2: #1c5cab;
+  --seq-3: #2a78d6;
+  --seq-4: #5598e7;
+  --seq-5: #9ec5f4;
+  --grid: #1a2335;
 }
 
 @theme inline {

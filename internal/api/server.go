@@ -14,6 +14,7 @@ import (
 	"github.com/hurseyc/guardtower/internal/auth"
 	"github.com/hurseyc/guardtower/internal/events"
 	"github.com/hurseyc/guardtower/internal/fleet"
+	"github.com/hurseyc/guardtower/internal/querylog"
 	"github.com/hurseyc/guardtower/internal/store"
 )
 
@@ -24,6 +25,7 @@ type Deps struct {
 	Auth     *auth.Service
 	Fleet    *fleet.Service
 	Poller   *fleet.Poller
+	QueryLog *querylog.Store
 	Bus      *events.Bus
 	WebFS    fs.FS // built SPA (index.html at root); nil serves a placeholder
 	DocsFS   fs.FS // markdown docs
@@ -71,6 +73,9 @@ func New(d Deps) *Server {
 			r.Get("/hosts", s.handleListHosts)
 			r.Get("/sites", s.handleListSites)
 			r.Get("/overview", s.handleOverview)
+			r.Get("/querylog", s.handleQueryLog)
+			r.Get("/stats/summary", s.handleStatsSummary)
+			r.Get("/collector", s.handleCollectorStates)
 
 			r.Group(func(r chi.Router) {
 				r.Use(requireRole(auth.RoleOperator))
@@ -99,6 +104,8 @@ func New(d Deps) *Server {
 				r.Put("/users/{id}", s.handleUpdateUser)
 				r.Delete("/users/{id}", s.handleDeleteUser)
 				r.Get("/audit", s.handleListAudit)
+				r.Get("/settings", s.handleGetSettings)
+				r.Put("/settings", s.handlePutSettings)
 			})
 		})
 		r.NotFound(func(w http.ResponseWriter, r *http.Request) { writeErr(w, 404, "no such API endpoint") })

@@ -8,8 +8,8 @@ This file is the single source of truth for resuming work. It is kept current at
 |---|---|---|
 | M0 | Scaffold, CI, dev fleet, auth + first-run setup | ✅ done |
 | M1 | Instances, groups, tags, hosts/sites, live status dashboard, AGH client | ✅ done |
-| M2 | Query-log collector & warehouse, search, live tail, fleet/group charts | ⏳ next |
-| M3 | Config engine: baseline import, base/group/instance layers, effective config, drift | ⬜ |
+| M2 | Query-log collector & warehouse, search, live tail, fleet/group charts | ✅ done |
+| M3 | Config engine: baseline import, base/group/instance layers, effective config, drift | ⏳ next |
 | M4 | Plan/Apply, snapshots, canary, auto-rollback, history/restore | ⬜ |
 | M5 | AGH upgrades: release tracking, builtin/docker/ssh drivers, rolling upgrades | ⬜ |
 | M6 | SPOF scoring + warnings, Proxmox mapping, topology map, visual analytics | ⬜ |
@@ -37,9 +37,17 @@ cd web && PW_CHROMIUM_PATH=/opt/pw-browsers/chromium npx playwright test   # san
 - The dev fleet runs real AdGuard Home release binaries (no Docker) via `internal/devfleet`. It is used by `gtdev`, the integration tests and the e2e tests.
 - Docs freshness gate: `web/src/test/docs.test.ts`.
 
-## Next steps (M2)
+## M2 notes
 
-1. Migration `0002`: `query_log` (instance_id FK cascade, ts, client, client_name, domain, qtype, status/reason, filter_list_id, rule, upstream, elapsed_ms, cached), indexes, `collector_state` cursor, `stats_hourly`.
-2. `internal/collector`: per-instance goroutine; pages `/control/querylog` newest-first back to the stored cursor; batch inserts; dedupe; per-instance backoff; publish `querylog.rows` over SSE; retention pruning.
-3. API: `/querylog` search (filters: instance, group, client, domain, status, time), `/stats/fleet`, `/stats/instances`.
-4. UI: Query log page (virtualised table, filters, live tail toggle), Analytics page (ECharts: traffic over time per instance and group, blocked %, top domains/clients), docs pages.
+- Warehouse: `internal/querylog` (rows, search, summaries, hourly rollups, per-hour top-100 rollups, domain dictionary).
+- Collector: `internal/collector` (10 s interval, newest-first paging to the cursor, never advances past unfetched rows, per-instance back-off, hourly pruning + rollup build).
+- Benchmark: `GT_PERF=1 go test -run Performance ./internal/querylog/` (1M rows: searches 1–12 ms, 1 h–7 d summaries 150–250 ms).
+- UI: Analytics (`/analytics`), Query log (`/logs`, live tail), Settings (`/settings`, retention + collection health), 24 h traffic on Overview.
+- Charts: native ECharts host in `web/src/components/charts.tsx`; palette tokens in `index.css`, validated with the dataviz validator for both surfaces.
+
+## Next steps (M3: config engine)
+
+1. `internal/config`: section model (DNS, filters + user rules, rewrites, clients, access, blocked services + schedule, safe browsing/parental/safe search, query-log/stats config, protection), read from AGH, normalise, diff.
+2. Layers table (base / group / instance) with per-field merge (scalars replace; keyed lists merge by key, with tombstones).
+3. Baseline import from an instance; effective-config view showing each value's origin layer.
+4. Drift detection job: compare effective config against live config, publish `drift.detected`, and show it in the UI.

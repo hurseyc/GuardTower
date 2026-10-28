@@ -1,10 +1,13 @@
 import type { LucideIcon } from 'lucide-react'
 import {
+  BarChart3,
   BookOpen,
   Boxes,
+  History,
   LayoutDashboard,
   ScrollText,
   Server,
+  Settings,
   ShieldCheck,
   Users,
 } from 'lucide-react'
@@ -30,8 +33,11 @@ export const navRoutes: NavRoute[] = [
   { path: '/instances', label: 'Instances', icon: ShieldCheck, doc: 'setup/adding-instances', section: 'Fleet' },
   { path: '/groups', label: 'Groups', icon: Boxes, doc: 'operation/groups', section: 'Fleet' },
   { path: '/hosts', label: 'Hosts & sites', icon: Server, doc: 'operation/hosts', section: 'Fleet' },
+  { path: '/analytics', label: 'Analytics', icon: BarChart3, doc: 'operation/analytics', section: 'Insights' },
+  { path: '/logs', label: 'Query log', icon: ScrollText, doc: 'operation/query-log', section: 'Insights' },
   { path: '/users', label: 'Users', icon: Users, doc: 'admin/users', section: 'Admin', minRole: 'admin' },
-  { path: '/audit', label: 'Audit log', icon: ScrollText, doc: 'admin/audit-log', section: 'Admin', minRole: 'admin' },
+  { path: '/audit', label: 'Audit log', icon: History, doc: 'admin/audit-log', section: 'Admin', minRole: 'admin' },
+  { path: '/settings', label: 'Settings', icon: Settings, doc: 'admin/settings', section: 'Admin', minRole: 'admin' },
   { path: '/docs', label: 'Documentation', icon: BookOpen, doc: 'index', section: 'Help' },
 ]
 

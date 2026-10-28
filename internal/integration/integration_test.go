@@ -10,14 +10,23 @@ package integration
 
 import (
 	"context"
+	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/miekg/dns"
+
 	"github.com/hurseyc/guardtower/internal/agh"
+	"github.com/hurseyc/guardtower/internal/app"
+	"github.com/hurseyc/guardtower/internal/crypto"
 	"github.com/hurseyc/guardtower/internal/devfleet"
+	"github.com/hurseyc/guardtower/internal/fleet"
+	"github.com/hurseyc/guardtower/internal/querylog"
+	"github.com/hurseyc/guardtower/internal/store"
 )
 
 func versions() []string {
@@ -109,4 +118,71 @@ func TestClientAgainstRealAdGuardHome(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCollectorAgainstRealAdGuardHome(t *testing.T) {
+	node, _ := startNode(t, "latest", 5)
+	ctx := context.Background()
+	st, err := store.OpenPath(ctx, ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	box, _ := crypto.New(make([]byte, 32))
+	a := app.NewWith(app.Config{Log: slog.New(slog.NewTextHandler(io.Discard, nil))}, st, box)
+	pw := devfleet.Password
+	in, err := a.Fleet.CreateInstance(ctx, fleet.InstanceInput{Name: "agh", URL: node.URL, Username: devfleet.User, Password: &pw})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	query := func(names ...string) {
+		cl := &dns.Client{Timeout: 3 * time.Second}
+		for _, n := range names {
+			m := new(dns.Msg)
+			m.SetQuestion(dns.Fqdn(n), dns.TypeA)
+			_, _, _ = cl.Exchange(m, node.DNSAddr) // upstream may be unreachable; the query is still logged
+		}
+	}
+	query("one.example", "two.example", "three.example")
+	// AdGuard Home flushes its in-memory query-log buffer asynchronously.
+	waitFor(t, func() bool {
+		n, err := a.Collector.CollectOne(ctx, in)
+		return err == nil && n > 0
+	})
+	var first int
+	_ = st.DB.QueryRow(`SELECT COUNT(*) FROM query_log`).Scan(&first)
+	if first < 3 {
+		t.Fatalf("expected at least 3 rows, got %d", first)
+	}
+	// A second run without new traffic stores nothing (dedupe + cursor).
+	if n, err := a.Collector.CollectOne(ctx, in); err != nil || n != 0 {
+		t.Fatalf("second run: n=%d err=%v", n, err)
+	}
+	query("four.example")
+	waitFor(t, func() bool {
+		var c int
+		_, _ = a.Collector.CollectOne(ctx, in)
+		_ = st.DB.QueryRow(`SELECT COUNT(*) FROM query_log WHERE domain = 'four.example'`).Scan(&c)
+		return c == 1
+	})
+	page, err := a.QueryLog.Search(ctx, querylog.Filter{Domain: "example"}, nil, 50)
+	if err != nil || len(page.Rows) < 4 {
+		t.Fatalf("search: %d rows, %v", len(page.Rows), err)
+	}
+	if page.Rows[0].Domain != "four.example" {
+		t.Fatalf("newest row should be four.example, got %s", page.Rows[0].Domain)
+	}
+}
+
+func waitFor(t *testing.T, cond func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(20 * time.Second)
+	for time.Now().Before(deadline) {
+		if cond() {
+			return
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	t.Fatal("condition not met within 20s")
 }
