@@ -65,7 +65,7 @@ After a successful apply, GuardTower remembers what it put on each instance. If 
 You then have two choices:
 
 - **Undo the hand edit**: click **Review & apply** on the instance, which puts the managed settings back.
-- **Keep the hand edit**: import it into the right layer on the [Configuration](configuration.md#getting-started-import-a-baseline) page, so it becomes the desired setting.
+- **Keep the hand edit**: import it into the right layer on the [Configuration](configuration.md#getting-started-copy-settings-from-an-instance) page, so it becomes the desired setting.
 
 ## Permissions
 

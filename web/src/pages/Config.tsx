@@ -77,7 +77,7 @@ export function ConfigPage() {
             )}
             {can('admin') && sel.scope !== 'instance' && (
               <Button variant="outline" onClick={() => setImportOpen(true)}>
-                <Download className="h-4 w-4" /> Import from an instance
+                <Download className="h-4 w-4" /> Copy from an instance
               </Button>
             )}
           </>
@@ -131,6 +131,18 @@ export function ConfigPage() {
 
         {/* Editor */}
         {section && layers ? (
+          <div className="min-w-0 space-y-4">
+            {can('admin') && sel.scope !== 'base' && Object.keys(layers).length === 0 && (
+              <Card className="flex flex-wrap items-center gap-3 border-dashed p-4 text-sm">
+                <Download className="h-4 w-4 shrink-0 text-accent" aria-hidden />
+                <p className="min-w-0 flex-1">
+                  <strong>{scopeName}</strong> doesn't set anything of its own yet, so it uses Base. To start from an instance you've already set up, copy its settings.
+                </p>
+                <Button size="sm" onClick={() => setImportOpen(true)}>
+                  Copy settings from an instance
+                </Button>
+              </Card>
+            )}
           <SectionEditor
             key={`${scopeParam(sel)}/${section.key}`}
             sel={sel}
@@ -140,12 +152,13 @@ export function ConfigPage() {
             inherited={inherited}
             readOnly={!can('admin')}
           />
+          </div>
         ) : (
           <Skeleton className="h-96" />
         )}
       </div>
       <YamlImportDialog open={yamlOpen} onOpenChange={setYamlOpen} schema={schema} />
-      {overview && schema && <ImportDialog open={importOpen} onOpenChange={setImportOpen} overview={overview} schema={schema} target={sel} targetName={scopeName} />}
+      {overview && schema && <ImportDialog open={importOpen} onOpenChange={setImportOpen} overview={overview} schema={schema} target={sel} targetName={scopeName} current={section?.key} />}
     </>
   )
 }
@@ -499,6 +512,7 @@ function ImportDialog({
   schema,
   target,
   targetName,
+  current,
 }: {
   open: boolean
   onOpenChange: (v: boolean) => void
@@ -506,20 +520,33 @@ function ImportDialog({
   schema: ConfigSection[]
   target: ScopeSel
   targetName: string
+  current?: string
 }) {
   const qc = useQueryClient()
   const [instanceId, setInstanceId] = useState(0)
   const [sections, setSections] = useState<string[]>(schema.map((s) => s.key))
+  // The target's own instances come first: copying a group's settings from one of its members is the usual case.
+  const members = overview.instances.filter((i) => (target.scope === 'group' ? i.group_id === target.id : target.scope === 'instance' ? i.id === target.id : false))
+  const others = overview.instances.filter((i) => !members.includes(i))
   useOnChange(open, (o) => {
     if (o) {
-      setInstanceId(overview.instances.find((i) => i.status?.online)?.id ?? overview.instances[0]?.id ?? 0)
+      const pick = [...members, ...others].find((i) => i.status?.online) ?? overview.instances[0]
+      setInstanceId(pick?.id ?? 0)
       setSections(schema.map((s) => s.key))
     }
   })
+  const source = overview.instances.find((i) => i.id === instanceId)
   const run = useMutation({
-    mutationFn: () => api.post('/config/import', { instance_id: instanceId, scope: target.scope, id: target.id, sections }),
-    onSuccess: () => {
-      toast.success(`Imported into ${targetName}`, { description: 'Review the sections, then check which instances differ.' })
+    mutationFn: () => api.post<{ sections: Record<string, number> }>('/config/import', { instance_id: instanceId, scope: target.scope, id: target.id, sections }),
+    onSuccess: (r) => {
+      const own = Object.values(r.sections).filter((n) => n > 0).length
+      const inherit = Object.keys(r.sections).length - own
+      toast.success(`${targetName} now matches ${source?.name ?? 'the instance'}`, {
+        description:
+          target.scope === 'base'
+            ? `${own} section${own === 1 ? '' : 's'} imported. Review them, then Review & apply to roll out.`
+            : `${own} section${own === 1 ? '' : 's'} differ from what ${targetName} inherits and ${own === 1 ? 'was' : 'were'} saved here; ${inherit} already match${inherit === 1 ? 'es' : ''}. Review & apply rolls it out.`,
+      })
       void qc.invalidateQueries({ queryKey: ['layers'] })
       void qc.invalidateQueries({ queryKey: ['layers-lower'] })
       onOpenChange(false)
@@ -530,8 +557,12 @@ function ImportDialog({
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title={`Import settings into ${targetName}`}
-      description="Copies an instance's current settings into this level as the desired state. Existing settings for the selected sections at this level are replaced. Nothing changes on any AdGuard Home instance."
+      title={`Copy settings into ${targetName}`}
+      description={
+        target.scope === 'base'
+          ? "Copies an instance's current settings into Base, the desired state for every instance. Nothing changes on any AdGuard Home instance until you apply it."
+          : `${targetName} will end up with exactly the chosen instance's settings for the selected sections. Only what differs from what it inherits is stored, so Base keeps managing the rest. Nothing changes on any AdGuard Home instance until you apply it.`
+      }
       footer={
         <>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
@@ -546,16 +577,38 @@ function ImportDialog({
       <div className="space-y-4">
         <Field label="Copy from instance" hint="Pick the instance whose settings are closest to what you want everywhere">
           <Select value={instanceId} onChange={(e) => setInstanceId(Number(e.target.value))}>
-            {overview.instances.map((i) => (
-              <option key={i.id} value={i.id} disabled={!i.status?.online}>
-                {i.name}
-                {i.status?.online ? '' : ' (offline)'}
-              </option>
-            ))}
+            {[
+              { label: target.scope === 'group' ? `In ${targetName}` : 'This instance', list: members },
+              { label: members.length ? 'Other instances' : 'Instances', list: others },
+            ]
+              .filter((g) => g.list.length > 0)
+              .map((g) => (
+                <optgroup key={g.label} label={g.label}>
+                  {g.list.map((i) => (
+                    <option key={i.id} value={i.id} disabled={!i.status?.online}>
+                      {i.name}
+                      {i.status?.online ? '' : ' (offline)'}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
           </Select>
         </Field>
         <div>
-          <div className="mb-2 text-xs font-medium text-muted">Sections</div>
+          <div className="mb-2 flex items-center gap-3 text-xs">
+            <span className="font-medium text-muted">Sections</span>
+            <button type="button" className="text-accent" onClick={() => setSections(schema.map((s) => s.key))}>
+              All
+            </button>
+            {current && (
+              <button type="button" className="text-accent" onClick={() => setSections([current])}>
+                Only {schema.find((s) => s.key === current)?.label}
+              </button>
+            )}
+            <button type="button" className="text-accent" onClick={() => setSections([])}>
+              None
+            </button>
+          </div>
           <div className="grid gap-1 sm:grid-cols-2">
             {schema.map((s) => (
               <label key={s.key} className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-hover">

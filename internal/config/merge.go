@@ -133,6 +133,67 @@ func LayerFromLive(sec *Section, live Doc) Doc {
 	return Doc(asJSON(d).(map[string]any))
 }
 
+// LayerToMatch returns the smallest layer that, on top of inherited (the
+// merged lower layers), makes the effective value equal live. Fields the
+// lower layers already set to the same value are left out, so an import into
+// a group doesn't copy Base; list items Base adds but live lacks are removed.
+func LayerToMatch(sec *Section, inherited, live Doc) Doc {
+	d := Doc{}
+	for _, f := range sec.Fields {
+		v, ok := live[f.Name]
+		if !ok {
+			continue
+		}
+		inh, managed := inherited[f.Name]
+		switch f.Kind {
+		case KindSet:
+			want, have := toStrings(v), toStrings(inh)
+			add, remove := []string{}, []string{}
+			for _, x := range want {
+				if !containsStr(have, x) {
+					add = append(add, x)
+				}
+			}
+			for _, x := range have {
+				if !containsStr(want, x) {
+					remove = append(remove, x)
+				}
+			}
+			if !managed || len(add)+len(remove) > 0 {
+				d[f.Name] = map[string]any{"add": add, "remove": remove}
+			}
+		case KindKeyed:
+			haveBy := map[string]any{}
+			for _, it := range toItems(inh) {
+				haveBy[f.keyFn(it)] = asJSON(it)
+			}
+			upsert, remove := []map[string]any{}, []string{}
+			seen := map[string]bool{}
+			for _, it := range toItems(v) {
+				k := f.keyFn(it)
+				seen[k] = true
+				if h, ok := haveBy[k]; !ok || !reflect.DeepEqual(h, asJSON(it)) {
+					upsert = append(upsert, it)
+				}
+			}
+			for _, it := range toItems(inh) {
+				if k := f.keyFn(it); !seen[k] {
+					remove = append(remove, k)
+				}
+			}
+			sort.Strings(remove)
+			if !managed || len(upsert)+len(remove) > 0 {
+				d[f.Name] = map[string]any{"upsert": upsert, "remove": remove}
+			}
+		default:
+			if !managed || !reflect.DeepEqual(asJSON(normalizeValue(f, v)), asJSON(inh)) {
+				d[f.Name] = v
+			}
+		}
+	}
+	return Doc(asJSON(d).(map[string]any))
+}
+
 // ValidateLayer checks a layer document against the section schema and
 // returns it in canonical form.
 func ValidateLayer(sec *Section, d Doc) (Doc, error) {

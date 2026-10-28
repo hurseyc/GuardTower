@@ -139,6 +139,23 @@ test.describe.serial('upgrades', () => {
   })
 })
 
+test.describe.serial('configuration', () => {
+  test('a group copies its settings from one of its instances', async ({ page }) => {
+    await signIn(page)
+    await page.getByRole('link', { name: 'Configuration' }).click()
+    await page.getByRole('button', { name: /^Main network/ }).click()
+    await page.getByRole('button', { name: 'Copy settings from an instance' }).click()
+    const dlg = page.getByRole('dialog')
+    await expect(dlg).toContainText('Main network will end up with exactly')
+    // The group's own instances are offered first.
+    await expect(dlg.getByLabel('Copy from instance')).toHaveValue(/\d+/)
+    await expect(dlg.locator('optgroup[label="In Main network"] option')).toHaveCount(2)
+    await dlg.getByRole('button', { name: /^Import \d+ sections?$/ }).click()
+    await expect(page.getByText(/^Main network now matches agh-\d$/)).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Copy settings from an instance' })).toBeHidden()
+  })
+})
+
 test.describe.serial('resilience and topology', () => {
   test('placing both instances on one host warns before saving and flags the group', async ({ page }) => {
     await signIn(page)
