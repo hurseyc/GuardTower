@@ -20,6 +20,8 @@ import (
 	"syscall"
 	"time"
 
+	"golang.org/x/crypto/bcrypt"
+
 	"github.com/hurseyc/guardtower/internal/agh"
 )
 
@@ -106,7 +108,9 @@ func EnsureBinary(ctx context.Context, dir, ver string, logf Logf) (string, erro
 }
 
 // Start launches instance i (0-based) from bin with its state under dir,
-// listening on webPort and dnsPort, and completes the setup wizard.
+// listening on webPort and dnsPort. A minimal AdGuardHome.yaml is written up
+// front instead of using the setup wizard, because AdGuard Home refuses its
+// first (wizard) launch unless it runs as root, and CI runners are not root.
 func Start(ctx context.Context, dir string, i int, bin string, webPort, dnsPort int, logf Logf) (*Node, error) {
 	wd, _ := filepath.Abs(filepath.Join(dir, "agh"+strconv.Itoa(i+1)))
 	if err := os.MkdirAll(wd, 0o750); err != nil {
@@ -128,8 +132,14 @@ func Start(ctx context.Context, dir string, i int, bin string, webPort, dnsPort 
 		return nil, err
 	}
 	defer logFile.Close()
+	cfg := filepath.Join(wd, "AdGuardHome.yaml")
+	if _, err := os.Stat(cfg); errors.Is(err, os.ErrNotExist) {
+		if err := writeConfig(cfg, port, dnsPort); err != nil {
+			return nil, err
+		}
+	}
 	cmd := exec.Command(bin, //nolint:gosec // dev tool runs the downloaded AGH binary.
-		"-w", wd, "-h", "127.0.0.1", "-p", strconv.Itoa(port), "--no-check-update")
+		"-w", wd, "-c", cfg, "--no-check-update")
 	cmd.Stdout, cmd.Stderr = logFile, logFile
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	if err := cmd.Start(); err != nil {
@@ -149,14 +159,41 @@ func Start(ctx context.Context, dir string, i int, bin string, webPort, dnsPort 
 				logf("agh%d ready at %s (DNS %s)", i+1, url, node.DNSAddr)
 			}
 			return node, nil
-		} else if strings.Contains(err.Error(), "setup wizard") {
-			if err := c.InstallConfigure(ctx, "127.0.0.1", port, "127.0.0.1", dnsPort, User, Password); err != nil {
-				return nil, fmt.Errorf("configure: %w", err)
-			}
 		}
 		time.Sleep(400 * time.Millisecond)
 	}
-	return nil, errors.New("timed out waiting for AdGuard Home to start (see " + logFile.Name() + ")")
+	tail, _ := os.ReadFile(logFile.Name()) //nolint:gosec // path we control.
+	if len(tail) > 2000 {
+		tail = tail[len(tail)-2000:]
+	}
+	return nil, fmt.Errorf("timed out waiting for AdGuard Home to start; log %s:\n%s", logFile.Name(), tail)
+}
+
+// writeConfig writes the smallest AdGuardHome.yaml that starts a configured
+// instance. schema_version 31 is understood by every v0.107.6x+ release; newer
+// releases migrate it forward on start-up.
+func writeConfig(path string, webPort, dnsPort int) error {
+	hash, err := bcrypt.GenerateFromPassword([]byte(Password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+	yaml := fmt.Sprintf(`http:
+  address: 127.0.0.1:%d
+users:
+  - name: %s
+    password: %s
+dns:
+  bind_hosts: [127.0.0.1]
+  port: %d
+  upstream_dns: [https://dns10.quad9.net/dns-query]
+filters:
+  - enabled: true
+    url: https://adguardteam.github.io/HostlistsRegistry/assets/filter_1.txt
+    name: AdGuard DNS filter
+    id: 1
+schema_version: 31
+`, webPort, User, hash, dnsPort)
+	return os.WriteFile(path, []byte(yaml), 0o600)
 }
 
 // StopAll terminates every instance started under dir.
