@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/hurseyc/GuardTower/compare/v1.1.0...v1.2.0) (2026-10-28)
+
+
+### Features
+
+* **config:** copying an instance into a group gives exactly its settings, storing only what differs ([#23](https://github.com/hurseyc/GuardTower/issues/23)) ([62d6f6c](https://github.com/hurseyc/GuardTower/commit/62d6f6ca29492d55905a50f463d67ba91537b686))
+
 ## [1.1.0](https://github.com/hurseyc/GuardTower/compare/v1.0.0...v1.1.0) (2026-10-28)
 
 
