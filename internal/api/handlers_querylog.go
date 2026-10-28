@@ -8,6 +8,7 @@ import (
 
 	"github.com/hurseyc/guardtower/internal/collector"
 	"github.com/hurseyc/guardtower/internal/querylog"
+	"github.com/hurseyc/guardtower/internal/rollout"
 )
 
 // filterFromRequest builds a query-log filter from URL parameters:
@@ -160,10 +161,12 @@ func (s *Server) handleCollectorStates(w http.ResponseWriter, r *http.Request) {
 // Every key here must be documented in docs/admin/settings.md.
 var settingDefs = map[string]struct {
 	def      string
+	isBool   bool
 	min, max int
 }{
-	collector.SettingRetentionDays:       {strconv.Itoa(collector.DefaultRetentionDays), 1, 3650},
-	collector.SettingRollupRetentionDays: {strconv.Itoa(collector.DefaultRollupRetentionDays), 7, 3650},
+	collector.SettingRetentionDays:       {def: strconv.Itoa(collector.DefaultRetentionDays), min: 1, max: 3650},
+	collector.SettingRollupRetentionDays: {def: strconv.Itoa(collector.DefaultRollupRetentionDays), min: 7, max: 3650},
+	rollout.SettingObserve:               {def: "true", isBool: true},
 }
 
 // SettingKeys returns the editable setting keys (used by the docs test).
@@ -203,6 +206,13 @@ func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 		if !ok {
 			writeErr(w, 400, "unknown setting "+k)
 			return
+		}
+		if d.isBool {
+			if v != "true" && v != "false" {
+				writeErr(w, 400, k+" must be true or false")
+				return
+			}
+			continue
 		}
 		n, err := strconv.Atoi(strings.TrimSpace(v))
 		if err != nil || n < d.min || n > d.max {

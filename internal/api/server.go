@@ -16,6 +16,7 @@ import (
 	"github.com/hurseyc/guardtower/internal/events"
 	"github.com/hurseyc/guardtower/internal/fleet"
 	"github.com/hurseyc/guardtower/internal/querylog"
+	"github.com/hurseyc/guardtower/internal/rollout"
 	"github.com/hurseyc/guardtower/internal/store"
 )
 
@@ -28,7 +29,7 @@ type Deps struct {
 	Poller   *fleet.Poller
 	QueryLog *querylog.Store
 	Config   *config.Service
-	SyncKick chan struct{}
+	Rollout  *rollout.Service
 	Bus      *events.Bus
 	WebFS    fs.FS // built SPA (index.html at root); nil serves a placeholder
 	DocsFS   fs.FS // markdown docs
@@ -83,12 +84,20 @@ func New(d Deps) *Server {
 			r.Get("/config/layers", s.handleGetLayers)
 			r.Get("/instances/{id}/config", s.handleInstanceConfig)
 			r.Get("/sync", s.handleListSync)
+			r.Get("/rollouts", s.handleListRollouts)
+			r.Get("/rollouts/{id}", s.handleGetRollout)
+			r.Get("/instances/{id}/snapshots", s.handleListSnapshots)
+			r.Get("/snapshots/{sid}", s.handleGetSnapshot)
 
 			r.Group(func(r chi.Router) {
 				r.Use(requireRole(auth.RoleOperator))
 				r.Post("/instances/{id}/protection", s.handleSetProtection)
 				r.Post("/instances/{id}/refresh", s.handleRefreshInstance)
 				r.Post("/sync/check", s.handleCheckSync)
+				r.Post("/rollouts/plan", s.handlePlan)
+				r.Post("/rollouts", s.handleStartRollout)
+				r.Post("/instances/{id}/snapshots", s.handleTakeSnapshot)
+				r.Post("/snapshots/{sid}/restore", s.handleRestoreSnapshot)
 			})
 
 			r.Group(func(r chi.Router) {

@@ -8,7 +8,7 @@ routes: [/config]
 
 # Configuration & settings layers
 
-The **Configuration** page holds the settings you *want* your AdGuard Home instances to have. GuardTower compares them with what each instance actually has and shows the differences. **Nothing is changed on an instance until you apply changes.**
+The **Configuration** page holds the settings you *want* your AdGuard Home instances to have. GuardTower compares them with what each instance actually has and shows the differences. **Nothing is changed on an instance until you apply changes** on the [Review & apply](changes.md) page.
 
 ## The three levels
 
@@ -70,6 +70,10 @@ You can also import into a **group** (for example from the instance that already
 - GuardTower re-checks every 2 minutes and immediately after you save a change.
 
 If an instance's AdGuard Home version doesn't have a setting (for example, *Use ignored-domain list* on older releases), the section shows **unsupported** for that setting instead of a change that can never be applied.
+
+## Applying changes
+
+When the differences look right, open [Review & apply](changes.md) to preview and roll them out, canary first, with automatic rollback.
 
 ## Permissions
 

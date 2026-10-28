@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 import { api, type CollectorState, type Overview, type SettingsResponse } from '@/lib/api'
 import { fmtNum, timeAgo } from '@/lib/utils'
 import { PageHeader } from '@/components/AppShell'
-import { Badge, Button, Card, CardHeader, Field, Input, StatusDot, Table, Td, Th, Tip } from '@/components/ui'
+import { Badge, Button, Card, CardHeader, Field, Input, StatusDot, Switch, Table, Td, Th, Tip } from '@/components/ui'
 
 function fmtBytes(n: number) {
   if (n < 1024) return `${n} B`
@@ -38,12 +38,34 @@ export function SettingsPage() {
     },
     onError: (e) => toast.error((e as Error).message),
   })
+  const observe = useMutation({
+    mutationFn: (on: boolean) => api.put<SettingsResponse>('/settings', { 'mode.observe': on ? 'true' : 'false' }),
+    onSuccess: (d) => {
+      qc.setQueryData(['settings'], d)
+      void qc.invalidateQueries({ queryKey: ['rollouts'] })
+      toast.success(d.settings['mode.observe'] === 'true' ? 'Observe mode on: GuardTower will not change instances' : 'Observe mode off: changes can be applied')
+    },
+    onError: (e) => toast.error((e as Error).message),
+  })
+  const observing = data?.settings['mode.observe'] !== 'false'
   const stateById = new Map((states ?? []).map((s) => [s.instance_id, s]))
 
   return (
     <>
-      <PageHeader title="Settings" description="Data retention and collection health." />
+      <PageHeader title="Settings" description="Safety mode, data retention and collection health." />
       <div className="grid gap-6 p-6 xl:grid-cols-3">
+        <Card className="xl:col-span-3">
+          <CardHeader
+            title="Observe mode"
+            description="While on, GuardTower only watches: it collects logs and checks settings, but never applies changes or restores snapshots."
+          />
+          <div className="flex items-center gap-3 px-5 pb-5 text-sm">
+            <Switch id="observe-mode" checked={observing} disabled={!data || observe.isPending} onCheckedChange={(v) => observe.mutate(v)} />
+            <label htmlFor="observe-mode" className="font-medium">
+              {observing ? 'On: read-only' : 'Off: changes can be applied from Review & apply'}
+            </label>
+          </div>
+        </Card>
         <Card className="xl:col-span-1">
           <CardHeader title="Data retention" description="Older data is pruned automatically every hour." />
           <form className="space-y-4 px-5 pb-5" onSubmit={(e) => (e.preventDefault(), save.mutate())}>

@@ -10,6 +10,7 @@ import { PageHeader } from '@/components/AppShell'
 import { Badge, Button, Card, CardHeader, Dialog, Select, Skeleton, StatusDot } from '@/components/ui'
 import { InstanceDialog } from '@/components/InstanceDialog'
 import { SyncCard } from '@/components/SyncCard'
+import { SnapshotsCard } from '@/components/SnapshotsCard'
 
 const runtimeLabel: Record<string, string> = {
   unknown: 'Not specified',
@@ -159,6 +160,7 @@ export function InstanceDetailPage() {
           </dl>
         </Card>
         <SyncCard instanceId={inst.id} />
+        <SnapshotsCard instanceId={inst.id} instanceName={inst.name} />
       </div>
       <InstanceDialog open={edit} onOpenChange={setEdit} instance={inst} groups={ov?.groups ?? []} hosts={ov?.hosts ?? []} />
       <Dialog
