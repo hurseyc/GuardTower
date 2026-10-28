@@ -90,3 +90,23 @@ test.describe.serial('query log and analytics', () => {
     await expect(page.getByText('Traffic by instance')).toBeVisible()
   })
 })
+
+test.describe.serial('review & apply', () => {
+  test('observe mode guards apply and the plan previews', async ({ page }) => {
+    await signIn(page)
+    await page.getByRole('link', { name: 'Review & apply' }).click()
+    await expect(page.getByRole('heading', { name: 'Review & apply' })).toBeVisible()
+    await expect(page.getByText('Observe mode is on.')).toBeVisible()
+    await page.getByRole('button', { name: 'Preview changes' }).click()
+    await expect(page.getByText(/^2\. Review/)).toBeVisible()
+    await page.getByRole('button', { name: 'Allow applying changes' }).click()
+    await page.getByRole('button', { name: 'Turn off observe mode' }).click()
+    await expect(page.getByText('Observe mode is on.')).toBeHidden()
+    // Settings reflects the same switch; turn observe mode back on there.
+    await page.getByRole('link', { name: 'Settings' }).click()
+    const sw = page.getByRole('switch', { name: /Off: changes can be applied/ })
+    await expect(sw).toHaveAttribute('aria-checked', 'false')
+    await sw.click()
+    await expect(page.getByRole('switch', { name: /On: read-only/ })).toHaveAttribute('aria-checked', 'true')
+  })
+})

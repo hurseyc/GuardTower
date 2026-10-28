@@ -283,7 +283,9 @@ export function Dialog({
             <div>
               <DialogPrimitive.Title className="text-base font-semibold">{title}</DialogPrimitive.Title>
               {description ? (
-                <DialogPrimitive.Description className="mt-1 text-sm text-muted">{description}</DialogPrimitive.Description>
+                <DialogPrimitive.Description asChild>
+                  <div className="mt-1 text-sm text-muted">{description}</div>
+                </DialogPrimitive.Description>
               ) : (
                 <DialogPrimitive.Description className="sr-only">{title}</DialogPrimitive.Description>
               )}

@@ -17,6 +17,7 @@ import (
 	"github.com/hurseyc/guardtower/internal/events"
 	"github.com/hurseyc/guardtower/internal/fleet"
 	"github.com/hurseyc/guardtower/internal/querylog"
+	"github.com/hurseyc/guardtower/internal/rollout"
 	"github.com/hurseyc/guardtower/internal/store"
 )
 
@@ -45,7 +46,7 @@ type App struct {
 	QueryLog  *querylog.Store
 	Collector *collector.Collector
 	Config    *config.Service
-	syncKick  chan struct{}
+	Rollout   *rollout.Service
 	Bus       *events.Bus
 	server    *api.Server
 }
@@ -76,7 +77,6 @@ func NewWith(cfg Config, st *store.Store, box *crypto.Box) *App {
 	fl := fleet.NewService(st, box)
 	ql := querylog.New(st)
 	cs := config.NewService(st, fl, bus, cfg.Log)
-	kick := make(chan struct{}, 1)
 	a := &App{
 		cfg:       cfg,
 		Store:     st,
@@ -88,10 +88,10 @@ func NewWith(cfg Config, st *store.Store, box *crypto.Box) *App {
 		QueryLog:  ql,
 		Collector: collector.New(fl, ql, st, bus, cfg.Log, cfg.CollectInterval),
 		Config:    cs,
-		syncKick:  kick,
+		Rollout:   rollout.New(st, fl, cs, bus, cfg.Log),
 	}
 	a.server = api.New(api.Deps{
-		Log: cfg.Log, Store: st, Auth: a.Auth, Fleet: fl, Poller: a.Poller, QueryLog: ql, Config: cs, SyncKick: kick, Bus: bus,
+		Log: cfg.Log, Store: st, Auth: a.Auth, Fleet: fl, Poller: a.Poller, QueryLog: ql, Config: cs, Rollout: a.Rollout, Bus: bus,
 		WebFS: cfg.WebFS, DocsFS: cfg.DocsFS, Proxies: cfg.TrustedProxy,
 		Features: map[string]bool{},
 	})
@@ -100,9 +100,10 @@ func NewWith(cfg Config, st *store.Store, box *crypto.Box) *App {
 
 // Start launches background workers.
 func (a *App) Start(ctx context.Context) {
+	a.Rollout.SetRoot(ctx)
 	go a.Poller.Run(ctx)
 	go a.Collector.Run(ctx)
-	go a.Config.RunChecks(ctx, 2*time.Minute, a.syncKick)
+	go a.Config.RunChecks(ctx, 2*time.Minute)
 	go func() {
 		t := time.NewTicker(time.Hour)
 		defer t.Stop()

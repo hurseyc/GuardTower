@@ -2,13 +2,21 @@
 title: Settings
 section: Admin
 order: 25
-summary: Data retention and collection health.
+summary: Observe mode, data retention and collection health.
 routes: [/settings]
 ---
 
 # Settings
 
 Admins can change GuardTower's runtime settings under **Admin → Settings**. Every change is recorded in the [audit log](audit-log.md).
+
+## Observe mode
+
+| Setting | Key | Default | What it controls |
+|---|---|---|---|
+| Observe mode | `mode.observe` | on | While on, GuardTower is read-only towards your instances: it collects logs and compares settings, but refuses to apply changes or restore snapshots. Turn it off to use [Review & apply](../operation/changes.md). |
+
+New installs start in observe mode so you can check what GuardTower sees before it changes anything.
 
 ## Data retention
 

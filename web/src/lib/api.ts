@@ -281,8 +281,74 @@ export interface SectionState {
 
 export interface SyncSummary {
   instance_id: number
+  drifted: string[]
   sections: Record<string, number>
   errors?: Record<string, string>
   total: number
   checked_at: number
+}
+
+// ---- rollouts & snapshots ----
+
+export interface RolloutTarget {
+  kind: 'fleet' | 'group' | 'tag' | 'instance'
+  id?: number
+  tag?: string
+}
+
+export interface PlanItem {
+  instance_id: number
+  name: string
+  canary: boolean
+  online: boolean
+  changes: Change[]
+  unsupported?: string[]
+  error?: string
+}
+
+export interface Plan {
+  target: string
+  sections?: string[]
+  items: PlanItem[]
+  total: number
+  observe: boolean
+  warnings: string[]
+}
+
+export type StepStatus = 'pending' | 'applying' | 'verifying' | 'succeeded' | 'failed' | 'rolled_back' | 'skipped'
+
+export interface RolloutStep {
+  id: number
+  instance_id: number
+  instance_name: string
+  ordinal: number
+  canary: boolean
+  status: StepStatus
+  changes: Change[]
+  snapshot_id?: number
+  detail: string
+  started_at?: number
+  finished_at?: number
+}
+
+export interface Rollout {
+  id: number
+  created_at: number
+  created_by: string
+  kind: 'apply' | 'restore'
+  target: string
+  sections: string[]
+  status: 'running' | 'succeeded' | 'failed' | 'rolled_back' | 'cancelled'
+  error: string
+  finished_at?: number
+  steps?: RolloutStep[]
+}
+
+export interface Snapshot {
+  id: number
+  instance_id: number
+  created_at: number
+  kind: 'pre-apply' | 'post-apply' | 'manual' | 'pre-restore'
+  rollout_id?: number
+  note?: string
 }

@@ -58,6 +58,11 @@ export function useServerEvents(enabled: boolean) {
           }
           if (t === 'rollout.update') void qc.invalidateQueries({ queryKey: ['rollouts'] })
           if (t === 'sync.changed') void qc.invalidateQueries({ queryKey: ['sync'] })
+          if (t === 'drift.detected' && data && typeof data === 'object') {
+            const d = data as { name: string; sections: string[] }
+            toast.warning(`${d.name} was changed outside GuardTower`, { description: `Drifted: ${d.sections.join(', ')}` })
+            void qc.invalidateQueries({ queryKey: ['sync'] })
+          }
           if (t === 'upgrade.update') void qc.invalidateQueries({ queryKey: ['upgrades'] })
         })
       }
