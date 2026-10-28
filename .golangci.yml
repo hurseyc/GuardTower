@@ -1,0 +1,39 @@
+version: "2"
+linters:
+  enable:
+    - bodyclose
+    - errorlint
+    - gosec
+    - misspell
+    - noctx
+    - revive
+    - unconvert
+    - unparam
+  settings:
+    errcheck:
+      exclude-functions:
+        - (io.Closer).Close
+        - (*database/sql.Rows).Close
+        - (*database/sql.Tx).Rollback
+        - (*database/sql.DB).Close
+        - (*os.File).Close
+        - (io/fs.File).Close
+        - (*github.com/hurseyc/guardtower/internal/store.Store).Close
+        - (*github.com/hurseyc/guardtower/internal/app.App).Close
+    gosec:
+      excludes:
+        - G104 # unhandled errors are checked by errcheck where they matter
+        - G115 # integer conversions are bounded by validation
+        - G124 # session cookies set Secure dynamically (TLS or GT_SECURE_COOKIES)
+    revive:
+      rules:
+        - name: exported
+          disabled: true
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters: [gosec, noctx, bodyclose, unparam]
+      - path: (cmd/gtdev|internal/devfleet)/
+        linters: [gosec, noctx]
+formatters:
+  enable: [gofmt, goimports]

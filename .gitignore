@@ -1,0 +1,16 @@
+/bin/
+/dist/
+/data/
+/tmp/
+web/node_modules/
+web/dist/*
+!web/dist/.gitkeep
+web/test-results/
+web/playwright-report/
+coverage.out
+*.db
+*.db-shm
+*.db-wal
+.DS_Store
+.idea/
+.vscode/

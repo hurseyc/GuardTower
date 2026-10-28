@@ -1,0 +1,146 @@
+@import '@fontsource-variable/inter';
+@import '@fontsource-variable/jetbrains-mono';
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Design tokens. Light values here, dark overrides below. */
+:root {
+  --bg: #f6f7f9;
+  --bg-elevated: #ffffff;
+  --bg-subtle: #eef0f4;
+  --bg-hover: #e7eaf0;
+  --border: #e2e5eb;
+  --border-strong: #cfd4dc;
+  --fg: #0f172a;
+  --fg-muted: #5b6475;
+  --fg-subtle: #8a93a3;
+  --accent: #059669;
+  --accent-fg: #ffffff;
+  --accent-soft: #d1fae5;
+  --info: #0284c7;
+  --warn: #d97706;
+  --warn-soft: #fef3c7;
+  --danger: #e11d48;
+  --danger-soft: #ffe4e6;
+  --ok: #16a34a;
+  --ring: #10b98155;
+  --shadow: 0 1px 2px rgb(15 23 42 / 0.06), 0 1px 1px rgb(15 23 42 / 0.04);
+  --shadow-lg: 0 10px 30px -10px rgb(15 23 42 / 0.25);
+}
+
+.dark {
+  --bg: #0a0f1a;
+  --bg-elevated: #111827;
+  --bg-subtle: #151d2e;
+  --bg-hover: #1b2539;
+  --border: #1f2a3d;
+  --border-strong: #2c3a52;
+  --fg: #e6eaf2;
+  --fg-muted: #98a2b5;
+  --fg-subtle: #6b7589;
+  --accent: #34d399;
+  --accent-fg: #052e22;
+  --accent-soft: #064e3b55;
+  --info: #38bdf8;
+  --warn: #fbbf24;
+  --warn-soft: #78350f55;
+  --danger: #fb7185;
+  --danger-soft: #88133755;
+  --ok: #4ade80;
+  --ring: #34d39966;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-lg: 0 20px 40px -12px rgb(0 0 0 / 0.6);
+}
+
+@theme inline {
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+  --color-bg: var(--bg);
+  --color-elevated: var(--bg-elevated);
+  --color-subtle: var(--bg-subtle);
+  --color-hover: var(--bg-hover);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-fg: var(--fg);
+  --color-muted: var(--fg-muted);
+  --color-faint: var(--fg-subtle);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
+  --color-info: var(--info);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-ok: var(--ok);
+  --color-ring: var(--ring);
+  --shadow-card: var(--shadow);
+  --shadow-pop: var(--shadow-lg);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-feature-settings: 'cv11', 'ss01';
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  border-color: var(--border);
+}
+
+::selection {
+  background: var(--ring);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Thin scrollbars that match the theme. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+@keyframes gt-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 60%, transparent); }
+  70% { box-shadow: 0 0 0 6px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+.gt-pulse {
+  animation: gt-pulse 2s infinite;
+}
+
+/* Markdown (docs) typography. */
+.prose-gt {
+  line-height: 1.7;
+  color: var(--fg);
+  font-size: 0.95rem;
+}
+.prose-gt h1 { font-size: 1.75rem; font-weight: 700; margin: 0 0 1rem; letter-spacing: -0.02em; }
+.prose-gt h2 { font-size: 1.3rem; font-weight: 650; margin: 2rem 0 0.75rem; padding-top: 0.5rem; border-top: 1px solid var(--border); letter-spacing: -0.01em; }
+.prose-gt h3 { font-size: 1.08rem; font-weight: 600; margin: 1.5rem 0 0.5rem; }
+.prose-gt p { margin: 0.75rem 0; }
+.prose-gt a { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+.prose-gt ul, .prose-gt ol { margin: 0.75rem 0; padding-left: 1.4rem; }
+.prose-gt ul { list-style: disc; }
+.prose-gt ol { list-style: decimal; }
+.prose-gt li { margin: 0.25rem 0; }
+.prose-gt code { font-family: var(--font-mono); font-size: 0.85em; background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 5px; padding: 0.1em 0.35em; }
+.prose-gt pre { background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 10px; padding: 0.9rem 1rem; overflow-x: auto; margin: 1rem 0; }
+.prose-gt pre code { background: none; border: 0; padding: 0; font-size: 0.82rem; }
+.prose-gt table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.88rem; }
+.prose-gt th, .prose-gt td { border: 1px solid var(--border); padding: 0.45rem 0.65rem; text-align: left; vertical-align: top; }
+.prose-gt th { background: var(--bg-subtle); font-weight: 600; }
+.prose-gt blockquote { border-left: 3px solid var(--accent); padding: 0.25rem 1rem; margin: 1rem 0; color: var(--fg-muted); background: var(--bg-subtle); border-radius: 0 8px 8px 0; }
+.prose-gt hr { border: 0; border-top: 1px solid var(--border); margin: 2rem 0; }

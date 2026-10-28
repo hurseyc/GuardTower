@@ -1,0 +1,35 @@
+name: Bug report
+description: Something isn't working as expected
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: GuardTower version
+      description: Shown in the docs footer, or run `guardtower version`
+    validations: { required: true }
+  - type: dropdown
+    id: install
+    attributes:
+      label: Install method
+      options: [Docker, Proxmox LXC, Linux package (.deb/.rpm), Binary, Other]
+    validations: { required: true }
+  - type: input
+    id: agh
+    attributes:
+      label: AdGuard Home version(s)
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations: { required: true }
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Run with GT_LOG_LEVEL=debug if possible. Remove any passwords or other secrets first.
+      render: text

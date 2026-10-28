@@ -1,0 +1,15 @@
+# GuardTower – minimal Docker Compose deployment.
+#   mkdir -p data && sudo chown 65532:65532 data && docker compose up -d
+services:
+  guardtower:
+    image: ghcr.io/hurseyc/guardtower:latest
+    container_name: guardtower
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/data
+    environment:
+      TZ: "UTC"
+      # GT_TRUSTED_PROXIES: "172.16.0.0/12"   # behind a reverse proxy
+      # GT_SECURE_COOKIES: "true"             # when the proxy terminates HTTPS
