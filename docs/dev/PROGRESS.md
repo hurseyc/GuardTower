@@ -128,17 +128,18 @@ cd web && PW_CHROMIUM_PATH=/opt/pw-browsers/chromium npx playwright test   # san
 - Review and merge the open Dependabot PRs (actions, node image, web deps) once CI is green on each.
 - Remove `release-as` from `release-please-config.json`.
 
-## Next phase (v1.3, not started; start when the owner says go)
+## v1.3 (built; ships as v1.3.0)
 
-1. **Theme switch: Light / Dark / Auto.** A picker already exists in the avatar menu (`AppShell.tsx`, `gt-theme` in localStorage), but it's hard to find.
+1. ✅ **Theme switch: Light / Dark / Auto.** A picker already exists in the avatar menu (`AppShell.tsx`, `gt-theme` in localStorage), but it's hard to find.
    - Add a visible header control and call the system option "Auto".
    - Auto follows OS changes live via a `matchMedia` listener.
    - Prevent a flash of the wrong theme on load with an inline script in `web/index.html`.
    - Add ⌘K actions and document it.
-2. **Click any instance → its dashboard** (`/instances/:id`).
+2. ✅ **Click any instance → its dashboard** (`/instances/:id`).
    - A shared `InstanceLink` component, used wherever an instance name appears.
    - Pages that need it: Query log (rows and facet), Analytics (leaderboards, the treemap and Sankey clicks), Hosts, Config (drift lists), Family ("seen on"), and the audit log.
    - Playwright click-through tests.
+   - As built: `lib/theme.ts` (shared store, live OS follow, other-tab sync), `ThemeButton` in the header, palette "Theme" group, toasts follow the theme. `InstanceLink` on Query log, Hosts and the audit log; an **Open <instance>** link in the Analytics/Query log filter bar and on an instance's Configuration level. Family DNS shows no per-instance names, so nothing to link there.
 
 ## Parked ideas (revisit later)
 

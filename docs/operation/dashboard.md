@@ -35,9 +35,13 @@ Click a card to open the [instance detail](instance-detail.md) page.
 
 When an instance goes offline or comes back, a notification appears in the bottom-right corner. The sidebar footer always shows a one-glance health bar for the whole fleet.
 
+## Light, dark or Auto
+
+The theme button in the header (sun, moon or monitor icon) switches between **Light**, **Dark** and **Auto**. Auto follows your operating system and changes with it, for example when your computer switches to dark mode in the evening. The choice is remembered per browser, and you can also pick it from your user menu or by typing *theme* in the command palette (<kbd>⌘K</kbd>).
+
 ## Keyboard shortcuts
 
 | Keys | Action |
 |---|---|
-| <kbd>⌘K</kbd> / <kbd>Ctrl K</kbd> | Search pages, instances and documentation |
+| <kbd>⌘K</kbd> / <kbd>Ctrl K</kbd> | Search pages, instances and documentation, or switch the theme |
 | <kbd>?</kbd> | Open help for the current page |

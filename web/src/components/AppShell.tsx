@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { Command } from 'cmdk'
-import { ArrowUpCircle, CircleHelp, FileCode2, KeyRound, LogOut, Menu, Monitor, Moon, Plus, Rocket, ScrollText, Search, Server, Sun, X } from 'lucide-react'
+import { ArrowUpCircle, CircleHelp, FileCode2, KeyRound, LogOut, Menu, Plus, Rocket, ScrollText, Search, Server, X } from 'lucide-react'
 import { api, type DocPage, type Overview } from '@/lib/api'
 import { useSession } from '@/lib/sessionContext'
 import { navRoutes, docForPath } from '@/lib/routes'
@@ -16,31 +16,9 @@ import { Logo } from './Logo'
 import { ChangePasswordDialog } from './ChangePasswordDialog'
 import { ErrorBoundary } from './ErrorBoundary'
 import { UpdateButton } from './UpdateButton'
+import { ThemeButton } from './ThemeButton'
+import { setTheme, themeIcons, themeOptions, useTheme } from '@/lib/theme'
 import { useOnChange } from '@/lib/useOnChange'
-
-type Theme = 'light' | 'dark' | 'system'
-
-function applyTheme(t: Theme) {
-  const dark = t === 'dark' || (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
-  document.documentElement.classList.toggle('dark', dark)
-  try {
-    localStorage.setItem('gt-theme', t)
-  } catch {
-    /* private mode */
-  }
-}
-
-function useTheme(): [Theme, (t: Theme) => void] {
-  const [theme, setTheme] = useState<Theme>(() => {
-    try {
-      return (localStorage.getItem('gt-theme') as Theme) || 'system'
-    } catch {
-      return 'system'
-    }
-  })
-  useEffect(() => applyTheme(theme), [theme])
-  return [theme, setTheme]
-}
 
 export function AppShell() {
   const { user, signOut, can } = useSession()
@@ -49,7 +27,7 @@ export function AppShell() {
   const [helpOpen, setHelpOpen] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [pwOpen, setPwOpen] = useState(false)
-  const [theme, setTheme] = useTheme()
+  const { pref: theme } = useTheme()
   useServerEvents(!!user)
   const qc = useQueryClient()
   const seesFamily = !!user && (user.family_access || can('admin'))
@@ -149,6 +127,7 @@ export function AppShell() {
           </button>
           <div className="ml-auto flex items-center gap-1">
             {can('admin') && <UpdateButton />}
+            <ThemeButton />
             <button
               onClick={() => setHelpOpen(true)}
               className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm text-muted hover:bg-hover hover:text-fg"
@@ -171,23 +150,23 @@ export function AppShell() {
                 <DropdownMenu.Content align="end" sideOffset={6} className="z-50 min-w-52 rounded-xl border border-border bg-elevated p-1 shadow-pop">
                   <div className="px-2.5 py-2 text-xs text-faint">Theme</div>
                   <div className="mb-1 grid grid-cols-3 gap-1 px-1">
-                    {([
-                      ['light', Sun],
-                      ['dark', Moon],
-                      ['system', Monitor],
-                    ] as const).map(([t, Icon]) => (
-                      <button
-                        key={t}
-                        onClick={() => setTheme(t)}
-                        className={cn(
-                          'flex flex-col items-center gap-1 rounded-lg py-2 text-[10px] capitalize',
-                          theme === t ? 'bg-accent-soft text-accent' : 'text-muted hover:bg-hover',
-                        )}
-                      >
-                        <Icon className="h-4 w-4" />
-                        {t}
-                      </button>
-                    ))}
+                    {themeOptions.map(({ value: t, label }) => {
+                      const Icon = themeIcons[t]
+                      return (
+                        <button
+                          key={t}
+                          onClick={() => setTheme(t)}
+                          aria-pressed={theme === t}
+                          className={cn(
+                            'flex flex-col items-center gap-1 rounded-lg py-2 text-[10px]',
+                            theme === t ? 'bg-accent-soft text-accent' : 'text-muted hover:bg-hover',
+                          )}
+                        >
+                          <Icon className="h-4 w-4" />
+                          {label}
+                        </button>
+                      )
+                    })}
                   </div>
                   <DropdownMenu.Separator className="my-1 h-px bg-border" />
                   {!user?.oidc && (
@@ -325,6 +304,25 @@ function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (
                   <a.icon className="h-4 w-4 text-muted" /> {a.label}
                 </Command.Item>
               ))}
+          </Command.Group>
+          <Command.Group heading="Theme" className="text-[10px] font-semibold uppercase tracking-wider text-faint [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1.5">
+            {themeOptions.map(({ value, label }) => {
+              const Icon = themeIcons[value]
+              return (
+                <Command.Item
+                  key={value}
+                  value={`theme ${label} ${value === 'system' ? 'system auto' : ''} dark mode light mode`}
+                  onSelect={() => {
+                    setTheme(value)
+                    onOpenChange(false)
+                  }}
+                  className={cn(item, 'normal-case tracking-normal text-fg')}
+                >
+                  <Icon className="h-4 w-4 text-muted" /> Theme: {label}
+                  {value === 'system' && <span className="ml-auto text-xs text-faint">follow the system</span>}
+                </Command.Item>
+              )
+            })}
           </Command.Group>
           <Command.Group heading="Pages" className="text-[10px] font-semibold uppercase tracking-wider text-faint [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1.5">
             {navRoutes

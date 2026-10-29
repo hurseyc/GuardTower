@@ -9,6 +9,7 @@ import { useResilience } from '@/lib/resilience'
 import { ProxmoxCard } from '@/components/ProxmoxCard'
 import { Badge, Button, Card, CardHeader, ConfirmDialog, Dialog, EmptyState, Field, Input, Select, StatusDot, Textarea } from '@/components/ui'
 import { useOnChange } from '@/lib/useOnChange'
+import { InstanceLink } from '@/components/InstanceLink'
 
 const kinds: { value: HostKind; label: string }[] = [
   { value: 'proxmox', label: 'Proxmox node' },
@@ -126,7 +127,7 @@ export function HostsPage() {
                       insts.map((i) => (
                         <div key={i.id} className="flex items-center gap-2 text-sm">
                           <StatusDot online={i.status?.online} />
-                          {i.name}
+                          <InstanceLink id={i.id}>{i.name}</InstanceLink>
                         </div>
                       ))
                     )}
@@ -139,7 +140,16 @@ export function HostsPage() {
         )}
         {unassigned.length > 0 && hosts.length > 0 && (
           <Card className="p-4 text-sm text-muted">
-            <strong className="text-fg">Not assigned to a host:</strong> {unassigned.map((i) => i.name).join(', ')}. Edit an instance to set its host.
+            <strong className="text-fg">Not assigned to a host:</strong>{' '}
+            {unassigned.map((i, n) => (
+              <span key={i.id}>
+                {n > 0 && ', '}
+                <InstanceLink id={i.id} className="text-fg">
+                  {i.name}
+                </InstanceLink>
+              </span>
+            ))}
+            . Edit an instance to set its host.
           </Card>
         )}
         <ProxmoxCard admin={can('admin')} />

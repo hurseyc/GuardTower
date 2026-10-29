@@ -10,6 +10,7 @@ import { Badge, Button, Card, EmptyState, Input, Select, Skeleton, Switch, Table
 import { FleetFilterBar } from './Analytics'
 import { useFleetFilter } from '@/lib/fleetFilter'
 import { useSearchParams } from 'react-router'
+import { InstanceLink } from '@/components/InstanceLink'
 
 export function StatusBadge({ status }: { status: QueryRow['status'] }) {
   const m = statusMeta[status] ?? statusMeta.allowed
@@ -225,7 +226,7 @@ export function QueryLogPage() {
                           <Td className="hidden py-2 text-sm lg:table-cell">
                             <span className="inline-flex items-center gap-1.5">
                               {g && <span className="h-2 w-2 rounded-full" style={{ background: colorFor(g.name, g.color) }} title={g.name} />}
-                              {inst?.name ?? `#${r.instance_id}`}
+                              <InstanceLink id={inst?.id}>{inst?.name ?? `#${r.instance_id}`}</InstanceLink>
                             </span>
                           </Td>
                           <Td className="hidden py-2 whitespace-nowrap text-right text-xs tabular-nums text-muted sm:table-cell">
@@ -239,7 +240,9 @@ export function QueryLogPage() {
                                 <Detail label="When">{fmtDateTime(r.ts)} ({timeAgo(r.ts)})</Detail>
                                 {/* Columns hidden on small screens. */}
                                 <Detail label="Client" className="md:hidden">{r.client_name ? `${r.client_name} (${r.client})` : r.client}</Detail>
-                                <Detail label="Instance" className="lg:hidden">{inst?.name ?? `#${r.instance_id}`}</Detail>
+                                <Detail label="Instance" className="lg:hidden">
+                                  <InstanceLink id={inst?.id}>{inst?.name ?? `#${r.instance_id}`}</InstanceLink>
+                                </Detail>
                                 <Detail label="Response" className="sm:hidden">{r.elapsed_ms.toFixed(1)} ms{r.cached ? ', cached' : ''}</Detail>
                                 <Detail label="AdGuard Home reason" mono>{r.reason || '—'}</Detail>
                                 <Detail label="Protocol">{r.proto || 'dns'}</Detail>
