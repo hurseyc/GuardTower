@@ -127,3 +127,25 @@ cd web && PW_CHROMIUM_PATH=/opt/pw-browsers/chromium npx playwright test   # san
 
 - Review and merge the open Dependabot PRs (actions, node image, web deps) once CI is green on each.
 - Remove `release-as` from `release-please-config.json`.
+
+## Next phase (v1.3, not started; start when the owner says go)
+
+1. **Theme switch: Light / Dark / Auto.** A picker already exists in the avatar menu (`AppShell.tsx`, `gt-theme` in localStorage), but it's hard to find.
+   - Add a visible header control and call the system option "Auto".
+   - Auto follows OS changes live via a `matchMedia` listener.
+   - Prevent a flash of the wrong theme on load with an inline script in `web/index.html`.
+   - Add ⌘K actions and document it.
+2. **Click any instance → its dashboard** (`/instances/:id`).
+   - A shared `InstanceLink` component, used wherever an instance name appears.
+   - Pages that need it: Query log (rows and facet), Analytics (leaderboards, the treemap and Sankey clicks), Hosts, Config (drift lists), Family ("seen on"), and the audit log.
+   - Playwright click-through tests.
+
+## Parked ideas (revisit later)
+
+1. Change timeline with undo
+2. Fleet-health alerts
+3. Encrypted scheduled backups to PBS/S3
+4. Plain-English log search via a local Ollama model
+5. Family schedules editor
+6. Home Assistant integration
+7. Community catalogs (community-scripts.org, Unraid, TrueNAS)
