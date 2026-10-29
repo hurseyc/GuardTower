@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/hurseyc/GuardTower/compare/v1.2.0...v1.3.0) (2026-10-29)
+
+
+### Features
+
+* **web:** Light/Dark/Auto theme switch in the header; instance names open the instance dashboard ([#28](https://github.com/hurseyc/GuardTower/issues/28)) ([9c4850c](https://github.com/hurseyc/GuardTower/commit/9c4850ccb8f97a9cacfe1e8b3325b1f031014627))
+
 ## [1.2.0](https://github.com/hurseyc/GuardTower/compare/v1.1.0...v1.2.0) (2026-10-28)
 
 
