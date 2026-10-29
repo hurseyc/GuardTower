@@ -197,6 +197,55 @@ test.describe.serial('resilience and topology', () => {
   })
 })
 
+test.describe.serial('click-through and theme', () => {
+  test('instance names open the instance dashboard', async ({ page }) => {
+    await signIn(page)
+    const opensAgh = async () => {
+      await expect(page).toHaveURL(/\/instances\/\d+/)
+      await expect(page.getByRole('heading', { name: /^agh-\d$/ })).toBeVisible()
+    }
+    // Hosts: the instances on a host.
+    await page.getByRole('link', { name: 'Hosts & sites' }).click()
+    await page.getByRole('link', { name: 'agh-1', exact: true }).click()
+    await opensAgh()
+    // Query log: the instance column.
+    await page.getByRole('link', { name: 'Query log' }).click()
+    await page.locator('tbody').getByRole('link', { name: /^agh-\d$/ }).first().click()
+    await opensAgh()
+    // Analytics: picking an instance offers its dashboard.
+    await page.getByRole('link', { name: 'Analytics' }).click()
+    await page.getByLabel('Instance', { exact: true }).selectOption({ label: 'agh-2' })
+    await page.getByRole('link', { name: 'Open agh-2' }).click()
+    await opensAgh()
+    // Audit log: instance.* entries.
+    await page.getByRole('link', { name: 'Audit log' }).click()
+    await page.locator('tbody').getByRole('link', { name: 'agh-1' }).first().click()
+    await opensAgh()
+  })
+
+  test('theme: Light, Dark and Auto, which follows the system live', async ({ page }) => {
+    await page.emulateMedia({ colorScheme: 'light' })
+    await signIn(page)
+    const html = page.locator('html')
+    const pick = async (label: string) => {
+      await page.getByRole('button', { name: /^Theme:/ }).click()
+      await page.getByRole('menuitemradio', { name: new RegExp(`^${label}`) }).click()
+    }
+    await pick('Dark')
+    await expect(html).toHaveClass(/dark/)
+    await page.reload()
+    await expect(html).toHaveClass(/dark/)
+    await pick('Light')
+    await expect(html).not.toHaveClass(/dark/)
+    await pick('Auto')
+    await expect(html).not.toHaveClass(/dark/)
+    await page.emulateMedia({ colorScheme: 'dark' })
+    await expect(html).toHaveClass(/dark/)
+    await page.emulateMedia({ colorScheme: 'light' })
+    await expect(html).not.toHaveClass(/dark/)
+  })
+})
+
 test.describe.serial('family dns', () => {
   test('a person gets their devices attempts, masked with reveal', async ({ page }) => {
     test.setTimeout(120_000)

@@ -8,7 +8,7 @@ routes: [/instances/:id]
 
 # Instance details
 
-Open an instance from the overview or the instances list to see everything GuardTower knows about it.
+Open an instance to see everything GuardTower knows about it. Wherever an instance's name appears it opens this page: the overview, the instances list, groups, topology, hosts, the query log, Review & apply, upgrades and the audit log. On Analytics and the Query log, picking an instance in the filter (or clicking its bar or block in a chart) narrows the page to it and shows an **Open** link to its dashboard; on Configuration, an instance's settings level has the same link.
 
 ## Connection
 

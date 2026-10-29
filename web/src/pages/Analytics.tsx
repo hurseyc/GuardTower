@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
-import { useNavigate } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
-import { Activity, Ban, Clock, Database, Users } from 'lucide-react'
+import { Activity, ArrowRight, Ban, Clock, Database, Users } from 'lucide-react'
 import { api, type Overview, type StatsSummary } from '@/lib/api'
 import { colorFor, fmtCompact, fmtNum, fmtPct } from '@/lib/utils'
 import { statusMeta } from '@/lib/status'
@@ -37,6 +37,11 @@ export function FleetFilterBar({ overview, range, group, instance, set, showRang
             </option>
           ))}
       </Select>
+      {instance && overview?.instances.some((i) => String(i.id) === instance) && (
+        <Link to={`/instances/${instance}`} className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm text-accent hover:bg-hover">
+          Open {overview.instances.find((i) => String(i.id) === instance)!.name} <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+        </Link>
+      )}
     </div>
   )
 }

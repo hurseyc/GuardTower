@@ -2,12 +2,13 @@ import { useState } from 'react'
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
-import { api, type AuditEntry, type Role, type User } from '@/lib/api'
+import { api, type AuditEntry, type Overview, type Role, type User } from '@/lib/api'
 import { useSession } from '@/lib/sessionContext'
 import { fmtDateTime, timeAgo } from '@/lib/utils'
 import { PageHeader } from '@/components/AppShell'
 import { Badge, Button, Card, ConfirmDialog, Dialog, Field, Input, Select, Switch, Table, Td, Th } from '@/components/ui'
 import { useOnChange } from '@/lib/useOnChange'
+import { InstanceLink } from '@/components/InstanceLink'
 
 const roleHelp: Record<Role, string> = {
   viewer: 'Read-only access to dashboards, logs and configuration.',
@@ -184,6 +185,7 @@ export function AuditPage() {
     getNextPageParam: (last) => (last.length === 100 ? last[last.length - 1].id : undefined),
   })
   const rows = data?.pages.flat() ?? []
+  const { data: overview } = useQuery({ queryKey: ['overview'], queryFn: () => api.get<Overview>('/overview') })
   return (
     <>
       <PageHeader title="Audit log" description="Every change made through GuardTower: who, what and when." />
@@ -212,7 +214,9 @@ export function AuditPage() {
                       {e.action}
                     </Badge>
                   </Td>
-                  <Td className="text-sm">{e.target}</Td>
+                  <Td className="text-sm">
+                    <AuditTarget entry={e} instances={overview?.instances ?? []} />
+                  </Td>
                   <Td className="max-w-sm truncate font-mono text-xs text-faint" title={e.detail}>
                     {e.detail === '{}' ? '' : e.detail}
                   </Td>
@@ -232,4 +236,16 @@ export function AuditPage() {
       </div>
     </>
   )
+}
+
+// "instance #12" targets, and instance.* actions (named by the instance), link to that instance.
+function AuditTarget({ entry, instances }: { entry: AuditEntry; instances: { id: number; name: string }[] }) {
+  const byId = /^instance #(\d+)$/.exec(entry.target)
+  const inst = byId
+    ? instances.find((i) => i.id === Number(byId[1]))
+    : entry.action.startsWith('instance.') && entry.action !== 'instance.delete'
+      ? instances.find((i) => i.name === entry.target)
+      : undefined
+  if (!inst) return <>{entry.target}</>
+  return <InstanceLink id={inst.id}>{byId ? inst.name : entry.target}</InstanceLink>
 }

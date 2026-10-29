@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Boxes, Download, FileDown, FileUp, Globe, Layers, Plus, ShieldCheck, Trash2, Undo2 } from 'lucide-react'
+import { Boxes, Download, ExternalLink, FileDown, FileUp, Globe, Layers, Plus, ShieldCheck, Trash2, Undo2 } from 'lucide-react'
 import { api, type ConfigField, type ConfigSection, type LayerDoc, type LayerInfo, type Overview } from '@/lib/api'
 import { fmtValue, keyOf, mergeLayers } from '@/lib/configMerge'
 import { useSession } from '@/lib/sessionContext'
@@ -74,6 +74,11 @@ export function ConfigPage() {
               <Button variant="ghost" onClick={() => setYamlOpen(true)}>
                 <FileUp className="h-4 w-4" /> Import YAML
               </Button>
+            )}
+            {inst && (
+              <Link to={`/instances/${inst.id}`} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-muted hover:bg-hover hover:text-fg">
+                <ExternalLink className="h-4 w-4" /> Open {inst.name}
+              </Link>
             )}
             {can('admin') && sel.scope !== 'instance' && (
               <Button variant="outline" onClick={() => setImportOpen(true)}>

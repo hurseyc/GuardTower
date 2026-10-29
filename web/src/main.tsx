@@ -1,12 +1,12 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { MutationCache, QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { Toaster } from 'sonner'
 import './index.css'
 import App from './App'
 import { SessionProvider } from './lib/session'
 import { TooltipProvider } from './components/ui'
 import { ApiError } from './lib/api'
+import { ThemedToaster } from './components/ThemeButton'
 
 const queryClient: QueryClient = new QueryClient({
   // Any change to the fleet (instances, groups, hosts) can change redundancy.
@@ -26,7 +26,7 @@ createRoot(document.getElementById('root')!).render(
       <SessionProvider>
         <TooltipProvider>
           <App />
-          <Toaster position="bottom-right" theme="system" richColors closeButton />
+          <ThemedToaster />
         </TooltipProvider>
       </SessionProvider>
     </QueryClientProvider>
