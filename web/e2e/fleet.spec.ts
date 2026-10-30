@@ -125,6 +125,29 @@ test.describe.serial('upgrades', () => {
     await expect(page.getByLabel('Upgrade policy for Main network')).toHaveValue('auto')
   })
 
+  test('observe mode explains why an upgrade can\'t start', async ({ page }) => {
+    await signIn(page)
+    // The sandboxed dev fleet is already on the latest release, so fake a plan with one instance to upgrade.
+    await page.route('**/api/v1/upgrades/plan', (r) =>
+      r.fulfill({
+        json: {
+          target: 'Main network',
+          items: [{ instance_id: 1, name: 'agh-1', canary: true, online: true, driver: 'builtin', from: 'v0.107.71', to: 'v0.107.79' }],
+          total: 1,
+          observe: true,
+          warnings: [],
+        },
+      }),
+    )
+    await page.getByRole('link', { name: 'Upgrades' }).click()
+    await page.getByRole('button', { name: 'Preview upgrade' }).click()
+    const start = page.getByRole('button', { name: 'Start upgrade' })
+    await expect(start).toBeDisabled()
+    await expect(start).toHaveAccessibleDescription(/Observe mode is on/)
+    await page.getByRole('link', { name: 'Turn it off in Settings' }).click()
+    await expect(page).toHaveURL(/\/settings/)
+  })
+
   test('instance page configures the Docker upgrade method', async ({ page }) => {
     await signIn(page)
     await page.getByRole('link', { name: 'Instances' }).click()
