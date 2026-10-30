@@ -24,7 +24,7 @@ import { Badge, Button, Card, CardHeader, ConfirmDialog, EmptyState, Input, Sele
 import { RolloutBadge, RolloutDetail } from './Changes'
 import { useRolloutEvents } from '@/lib/rollouts'
 import { useOnChange } from '@/lib/useOnChange'
-import { driverLabel } from '@/lib/labels'
+import { detectPendingHelp, detectPendingLabel, driverLabel } from '@/lib/labels'
 
 function StatusCell({ s }: { s: UpgradeInstanceState }) {
   if (!s.online) return <Badge tone="danger">offline</Badge>
@@ -33,6 +33,13 @@ function StatusCell({ s }: { s: UpgradeInstanceState }) {
       <Badge tone="warn">
         <ArrowUpCircle className="mr-1 inline h-3 w-3" />
         {s.target} available
+      </Badge>
+    )
+  if (s.up_to_date)
+    return (
+      <Badge tone="ok">
+        <CheckCircle2 className="mr-1 inline h-3 w-3" />
+        up to date
       </Badge>
     )
   if (s.blocked) {
@@ -240,6 +247,10 @@ export function UpgradesPage() {
                         <Td className="text-sm">
                           {s.driver ? (
                             driverLabel[s.driver]
+                          ) : s.detect_pending && !s.blocked ? (
+                            <Tip content={detectPendingHelp}>
+                              <span className="text-muted underline decoration-dotted">{detectPendingLabel}</span>
+                            </Tip>
                           ) : (
                             <Tip content={s.blocked ?? ''}>
                               <span className="text-muted underline decoration-dotted">{driverLabel['']}</span>

@@ -281,18 +281,22 @@ func (s *Service) Test(ctx context.Context, id int64, kind string, in ConfigInpu
 
 // InstanceState is one instance on the Upgrades page.
 type InstanceState struct {
-	InstanceID      int64  `json:"instance_id"`
-	Name            string `json:"name"`
-	GroupID         int64  `json:"group_id,omitempty"`
-	Online          bool   `json:"online"`
-	Version         string `json:"version"`
-	Configured      string `json:"configured"`
-	Driver          string `json:"driver"`
-	CanAutoUpdate   bool   `json:"can_autoupdate"`
+	InstanceID    int64  `json:"instance_id"`
+	Name          string `json:"name"`
+	GroupID       int64  `json:"group_id,omitempty"`
+	Online        bool   `json:"online"`
+	Version       string `json:"version"`
+	Configured    string `json:"configured"`
+	Driver        string `json:"driver"`
+	CanAutoUpdate bool   `json:"can_autoupdate"`
+	// DetectPending: AdGuard Home hasn't said yet whether it can update
+	// itself, because it only does so while a newer version is on offer.
+	DetectPending   bool   `json:"detect_pending,omitempty"`
 	BuiltinVersion  string `json:"builtin_version,omitempty"`
 	Pinned          string `json:"pinned,omitempty"`
 	Target          string `json:"target,omitempty"`
 	UpdateAvailable bool   `json:"update_available"`
+	UpToDate        bool   `json:"up_to_date"`
 	Blocked         string `json:"blocked,omitempty"`
 	CheckError      string `json:"check_error,omitempty"`
 	CheckedAt       int64  `json:"checked_at,omitempty"`
@@ -300,12 +304,14 @@ type InstanceState struct {
 
 type checkRow struct {
 	driver, builtin, errText string
-	canAuto                  bool
-	at                       int64
+	// canAuto is only meaningful when known: AdGuard Home answers
+	// can_autoupdate truthfully only while it offers a newer version.
+	canAuto, known bool
+	at             int64
 }
 
 func (s *Service) checks(ctx context.Context) (map[int64]checkRow, error) {
-	rows, err := s.st.DB.QueryContext(ctx, `SELECT instance_id, driver, can_autoupdate, builtin_version, error, checked_at FROM upgrade_status`)
+	rows, err := s.st.DB.QueryContext(ctx, `SELECT instance_id, driver, can_autoupdate, autoupdate_known, builtin_version, error, checked_at FROM upgrade_status`)
 	if err != nil {
 		return nil, err
 	}
@@ -314,7 +320,7 @@ func (s *Service) checks(ctx context.Context) (map[int64]checkRow, error) {
 	for rows.Next() {
 		var id int64
 		var r checkRow
-		if err := rows.Scan(&id, &r.driver, &r.canAuto, &r.builtin, &r.errText, &r.at); err != nil {
+		if err := rows.Scan(&id, &r.driver, &r.canAuto, &r.known, &r.builtin, &r.errText, &r.at); err != nil {
 			return nil, err
 		}
 		out[id] = r
@@ -331,7 +337,7 @@ func effective(c *Config, chk checkRow) (string, string) {
 	case DriverNone:
 		return "", "Upgrades are turned off for this instance."
 	case DriverBuiltin:
-		if !chk.canAuto {
+		if !chk.canAuto && chk.known {
 			return "", "AdGuard Home's built-in updater is not available on this instance."
 		}
 		return DriverBuiltin, ""
@@ -358,6 +364,9 @@ func effective(c *Config, chk checkRow) (string, string) {
 		return "", "Test the SSH connection to pin the host key."
 	case chk.canAuto:
 		return DriverBuiltin, ""
+	case !chk.known:
+		// Not known yet: neither usable nor blocked.
+		return "", ""
 	}
 	return "", "No upgrade method: AdGuard Home can't update itself here (typical for Docker). Configure the Docker or SSH driver."
 }
@@ -370,9 +379,17 @@ func (s *Service) state(in *fleet.Instance, c *Config, chk checkRow, latest, wan
 		st.Online, st.Version = in.Status.Online, in.Status.Version
 	}
 	st.Driver, st.Blocked = effective(c, chk)
+	st.UpToDate = latest != "" && st.Version != "" && !Newer(latest, st.Version)
 	target := want
 	if target == "" {
 		target = latest
+	}
+	if st.Driver == "" && st.Blocked == "" {
+		st.DetectPending = true
+		if target != "" && Newer(target, st.Version) {
+			st.Blocked = "AdGuard Home hasn't offered " + target + " to this instance yet, so GuardTower can't tell whether its built-in updater works here. It checks again every few hours; configure Docker or SSH to upgrade now."
+		}
+		return st
 	}
 	if c.PinnedVersion != "" {
 		if want != "" && !SameVersion(want, c.PinnedVersion) {
@@ -457,6 +474,8 @@ func (s *Service) Overview(ctx context.Context) (*Overview, error) {
 // CheckInstance asks an instance what its built-in updater offers.
 func (s *Service) CheckInstance(ctx context.Context, in *fleet.Instance, recheck bool) {
 	row := checkRow{at: s.Now().UnixMilli()}
+	prev, _ := s.checks(ctx)
+	row.canAuto, row.known = prev[in.ID].canAuto, prev[in.ID].known
 	c, err := s.fleet.Client(in)
 	if err == nil {
 		cctx, cancel := context.WithTimeout(ctx, 30*time.Second)
@@ -464,8 +483,13 @@ func (s *Service) CheckInstance(ctx context.Context, in *fleet.Instance, recheck
 		v, err = c.Version(cctx, recheck)
 		cancel()
 		if err == nil {
-			row.canAuto = v.CanAutoUpdate && !v.Disabled
-			if Newer(v.NewVersion, statusVersion(in)) {
+			offered := Newer(v.NewVersion, statusVersion(in))
+			// Without an update on offer AdGuard Home always says it can't
+			// update itself; keep the last real answer instead.
+			if offered || v.Disabled {
+				row.canAuto, row.known = v.CanAutoUpdate && !v.Disabled, true
+			}
+			if offered {
 				row.builtin = v.NewVersion
 			}
 		}
@@ -477,9 +501,9 @@ func (s *Service) CheckInstance(ctx context.Context, in *fleet.Instance, recheck
 	if lerr == nil {
 		row.driver, _ = effective(cfg, row)
 	}
-	if _, err := s.st.DB.ExecContext(ctx, `INSERT INTO upgrade_status (instance_id, driver, can_autoupdate, builtin_version, error, checked_at) VALUES (?, ?, ?, ?, ?, ?)
-		ON CONFLICT (instance_id) DO UPDATE SET driver = excluded.driver, can_autoupdate = excluded.can_autoupdate, builtin_version = excluded.builtin_version,
-		error = excluded.error, checked_at = excluded.checked_at`, in.ID, row.driver, row.canAuto, row.builtin, row.errText, row.at); err != nil {
+	if _, err := s.st.DB.ExecContext(ctx, `INSERT INTO upgrade_status (instance_id, driver, can_autoupdate, autoupdate_known, builtin_version, error, checked_at) VALUES (?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT (instance_id) DO UPDATE SET driver = excluded.driver, can_autoupdate = excluded.can_autoupdate, autoupdate_known = excluded.autoupdate_known,
+		builtin_version = excluded.builtin_version, error = excluded.error, checked_at = excluded.checked_at`, in.ID, row.driver, row.canAuto, row.known, row.builtin, row.errText, row.at); err != nil {
 		s.log.Warn("upgrade: save check", "err", err)
 	}
 }

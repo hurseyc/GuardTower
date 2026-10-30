@@ -377,10 +377,13 @@ export interface UpgradeInstanceState {
   configured: UpgradeDriver
   driver: '' | 'builtin' | 'docker' | 'ssh'
   can_autoupdate: boolean
+  /** AdGuard Home only says whether it can update itself while an update is on offer. */
+  detect_pending?: boolean
   builtin_version?: string
   pinned?: string
   target?: string
   update_available: boolean
+  up_to_date: boolean
   blocked?: string
   check_error?: string
   checked_at?: number
