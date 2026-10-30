@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/hurseyc/GuardTower/compare/v1.3.1...v1.4.0) (2026-10-30)
+
+
+### Features
+
+* **upgrades:** explain next to Start upgrade why it's disabled ([#32](https://github.com/hurseyc/GuardTower/issues/32)) ([35c53bb](https://github.com/hurseyc/GuardTower/commit/35c53bbc26e127c34e8d326dccc044f3541c34d1))
+
 ## [1.3.1](https://github.com/hurseyc/GuardTower/compare/v1.3.0...v1.3.1) (2026-10-30)
 
 
