@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/hurseyc/GuardTower/compare/v1.3.0...v1.3.1) (2026-10-30)
+
+
+### Bug Fixes
+
+* **upgrades:** don't report up-to-date instances as "can't upgrade" ([#30](https://github.com/hurseyc/GuardTower/issues/30)) ([44729e5](https://github.com/hurseyc/GuardTower/commit/44729e58276cca4dd54b334feff59856a26c9562))
+
 ## [1.3.0](https://github.com/hurseyc/GuardTower/compare/v1.2.0...v1.3.0) (2026-10-29)
 
 
