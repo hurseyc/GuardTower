@@ -309,8 +309,34 @@ export function UpgradesPage() {
                 <h3 className="flex-1 text-sm font-semibold">
                   {plan.total === 0 ? 'Nothing to upgrade' : `${plan.total} instance${plan.total === 1 ? '' : 's'} to upgrade`} · {plan.target}
                 </h3>
+                {can('operator') && plan.total > 0 && observe && (
+                  <p className="flex items-center gap-1.5 text-sm text-muted" id="upgrade-blocked">
+                    <Eye className="h-4 w-4 shrink-0 text-warn" aria-hidden />
+                    <span>
+                      Observe mode is on, so GuardTower won't change instances.{' '}
+                      {can('admin') ? (
+                        <Link to="/settings" className="text-accent underline underline-offset-2">
+                          Turn it off in Settings
+                        </Link>
+                      ) : (
+                        'An admin can turn it off in Settings'
+                      )}{' '}
+                      to upgrade.
+                    </span>
+                  </p>
+                )}
+                {can('operator') && plan.total > 0 && !observe && busy && (
+                  <p className="text-sm text-muted" id="upgrade-blocked">
+                    Another rollout is running; this one can start when it finishes.
+                  </p>
+                )}
                 {can('operator') && plan.total > 0 && (
-                  <Button variant="primary" disabled={observe || busy} onClick={() => setConfirm(true)} title={observe ? 'Observe mode is on' : busy ? 'A rollout is running' : undefined}>
+                  <Button
+                    variant="primary"
+                    disabled={observe || busy}
+                    onClick={() => setConfirm(true)}
+                    aria-describedby={observe || busy ? 'upgrade-blocked' : undefined}
+                  >
                     <ArrowUpCircle className="h-4 w-4" /> Start upgrade
                   </Button>
                 )}
