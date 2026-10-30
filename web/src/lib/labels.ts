@@ -8,6 +8,12 @@ export const driverLabel: Record<string, string> = {
   '': 'Not configured',
 }
 
+/** Method column text while AdGuard Home hasn't said whether its updater works. */
+export const detectPendingLabel = 'Checked when an update is out'
+export const detectPendingHelp =
+  "AdGuard Home only says whether it can update itself while a newer version is available, so GuardTower can't tell yet. Nothing is wrong: when the next release comes out, this shows Built-in updater, or asks you to set up Docker or SSH."
+
+
 export const categoryLabel: Record<FamilyCategory, string> = {
   adult: 'Adult',
   gambling: 'Gambling',

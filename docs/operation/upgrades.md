@@ -16,10 +16,12 @@ First, set an [upgrade method](../setup/upgrade-methods.md) for each instance. I
 
 | Status | Meaning |
 |---|---|
-| **up to date** | Already on the target version. |
+| **up to date** | Already on the latest (or pinned) version. |
 | **vX available** | Can be upgraded to vX. |
-| **can't upgrade** | No usable upgrade method, or the instance is pinned. Hover for the reason. |
+| **can't upgrade** | Behind, but there's no usable upgrade method, or the instance is pinned. Hover for the reason. |
 | **offline** | Not reachable; skipped by upgrades. |
+
+**"Checked when an update is out."** AdGuard Home only says whether its built-in updater works on an instance while a newer version is available. If you add an instance, or update it from its own web interface, while it is already on the latest release, GuardTower can't tell yet, so the upgrade method shows *Checked when an update is out*. Nothing is wrong: when the next release comes out, it changes to **Built-in updater**, or asks you to set up Docker or SSH (typical for Docker installs). Once GuardTower has seen the answer, it remembers it.
 
 ## Upgrading by hand
 

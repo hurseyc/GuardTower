@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/hurseyc/guardtower/internal/agh"
+	"github.com/hurseyc/guardtower/internal/fleet"
 )
 
 func fakeAGH(t *testing.T, info agh.VersionInfo) (*agh.Client, *int) {
@@ -53,8 +54,12 @@ func TestBuiltinUpgrade(t *testing.T) {
 
 func TestEffectiveDriver(t *testing.T) {
 	c := defaultConfig(1)
-	if d, why := effective(c, checkRow{}); d != "" || why == "" {
-		t.Errorf("nothing configured: %q %q", d, why)
+	if d, why := effective(c, checkRow{known: true}); d != "" || why == "" {
+		t.Errorf("no updater, nothing configured: %q %q", d, why)
+	}
+	// AdGuard Home hasn't said yet (it only does while an update is out).
+	if d, why := effective(c, checkRow{}); d != "" || why != "" {
+		t.Errorf("not yet known should be neither usable nor blocked: %q %q", d, why)
 	}
 	if d, _ := effective(c, checkRow{canAuto: true}); d != DriverBuiltin {
 		t.Errorf("auto with updater = %q", d)
@@ -74,5 +79,23 @@ func TestEffectiveDriver(t *testing.T) {
 	c.Driver = DriverNone
 	if d, _ := effective(c, checkRow{}); d != "" {
 		t.Errorf("none = %q", d)
+	}
+}
+
+func TestStateUpToDateWithoutUpdaterAnswer(t *testing.T) {
+	s := &Service{}
+	in := &fleet.Instance{ID: 1, Name: "agh", Status: &fleet.Status{Online: true, Version: "v0.107.79"}}
+	st := s.state(in, defaultConfig(1), checkRow{}, "v0.107.79", "")
+	if !st.UpToDate || st.Blocked != "" || !st.DetectPending || st.UpdateAvailable {
+		t.Errorf("on latest with no updater answer: %+v", st)
+	}
+	in.Status.Version = "v0.107.71"
+	st = s.state(in, defaultConfig(1), checkRow{}, "v0.107.79", "")
+	if st.UpToDate || st.Blocked == "" || st.UpdateAvailable {
+		t.Errorf("behind, AdGuard Home not offering yet: %+v", st)
+	}
+	st = s.state(in, defaultConfig(1), checkRow{canAuto: true, known: true, builtin: "v0.107.79"}, "v0.107.79", "")
+	if !st.UpdateAvailable || st.Driver != DriverBuiltin || st.Target != "v0.107.79" {
+		t.Errorf("updater offering the update: %+v", st)
 	}
 }

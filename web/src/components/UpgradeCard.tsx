@@ -6,7 +6,8 @@ import { ArrowUpCircle, CheckCircle2, KeyRound, PlugZap, XCircle } from 'lucide-
 import { api, type UpgradeConfig, type UpgradeDriver, type UpgradeOverview, type UpgradeTestResult } from '@/lib/api'
 import { useSession } from '@/lib/sessionContext'
 import { cn } from '@/lib/utils'
-import { Badge, Button, Card, CardHeader, Field, Input, Select, Skeleton, Switch } from './ui'
+import { Badge, Button, Card, CardHeader, Field, Input, Select, Skeleton, Switch, Tip } from './ui'
+import { detectPendingHelp, detectPendingLabel } from '@/lib/labels'
 
 const driverOptions: { value: UpgradeDriver; label: string; hint: string }[] = [
   { value: 'auto', label: 'Automatic', hint: 'Docker if configured, then SSH, then AdGuard Home’s built-in updater.' },
@@ -62,8 +63,13 @@ export function UpgradeCard({ instanceId }: { instanceId: number }) {
           <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
             <span className="text-muted">Running</span>
             <span className="font-mono">{state.version || '—'}</span>
-            {state.update_available ? <Badge tone="warn">{state.target} available</Badge> : state.blocked ? <Badge>{state.blocked}</Badge> : <Badge tone="ok">up to date</Badge>}
+            {state.update_available ? <Badge tone="warn">{state.target} available</Badge> : state.up_to_date || !state.blocked ? <Badge tone="ok">up to date</Badge> : <Badge>{state.blocked}</Badge>}
             {state.driver && <Badge tone="info">via {driverOptions.find((d) => d.value === state.driver)?.label}</Badge>}
+            {!state.driver && state.detect_pending && (
+              <Tip content={detectPendingHelp}>
+                <span className="text-xs text-muted underline decoration-dotted">{detectPendingLabel}</span>
+              </Tip>
+            )}
           </div>
         )}
         <UpgradeForm key={cfg.updated_at ?? 0} cfg={cfg} instanceId={instanceId} editable={admin} onSaved={() => void qc.invalidateQueries({ queryKey: ['upgrades'] })} />
