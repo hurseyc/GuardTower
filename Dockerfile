@@ -11,7 +11,7 @@ COPY web/ ./
 COPY docs/ /src/docs/
 RUN npm run build
 
-FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS build
+FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS build
 ARG TARGETOS TARGETARCH TARGETVARIANT
 ARG VERSION=dev COMMIT=none DATE=unknown
 WORKDIR /src
