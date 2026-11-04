@@ -78,7 +78,7 @@ jobs:
             type=semver,pattern={{major}},value=${{ env.TAG }}
             type=raw,value=latest
       - id: push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           platforms: linux/amd64,linux/arm64,linux/arm/v7
