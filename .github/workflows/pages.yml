@@ -30,7 +30,7 @@ jobs:
           python-version: "3.13"
       - run: pip install -r docs/requirements.txt
       - run: python3 scripts/mkdocs_nav.py && mkdocs build --strict -d site
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: site
       - id: deployment
